@@ -5,28 +5,36 @@ import (
 	"time"
 )
 
-func Every(e time.Duration, states ...Fn) Fn {
-	return every(e).run(states...)
+func Every(e time.Duration, state Fn) Fn {
+	return every(e).run(state)
 }
 
 type every time.Duration
 
 func (e every) run(states ...Fn) Fn {
-	run := Batch(states...)
+	if len(states) == 0 {
+		return nil
+	}
 
-	var next Fn
+	var run Fn
+	if len(states) > 1 {
+		run = Batch(states...)
+	} else {
+		run = states[0]
+	}
+
 	var err error
 
 	return func(ctx context.Context) (Fn, error) {
 		done := make(chan struct{})
 		time.AfterFunc(time.Duration(e), func() {
-			next, err = run(ctx)
+			run, err = run(ctx)
 			done <- struct{}{}
 		})
 		select {
 		case <-done:
 			break
 		}
-		return next, err
+		return run, err
 	}
 }

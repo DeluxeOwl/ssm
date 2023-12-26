@@ -5,28 +5,35 @@ import (
 	"time"
 )
 
-func At(t time.Time, states ...Fn) Fn {
-	return timer(t).run(states...)
+func At(t time.Time, state Fn) Fn {
+	return timer(t).run(state)
 }
 
 type timer time.Time
 
 func (t timer) run(states ...Fn) Fn {
-	run := Batch(states...)
+	if len(states) == 0 {
+		return nil
+	}
 
-	var next Fn
+	var run Fn
+	if len(states) > 1 {
+		run = Batch(states...)
+	} else {
+		run = states[0]
+	}
+
 	var err error
-
 	return func(ctx context.Context) (Fn, error) {
 		done := make(chan struct{})
 		time.AfterFunc(time.Time(t).Sub(time.Now()), func() {
-			next, err = run(ctx)
+			run, err = run(ctx)
 			done <- struct{}{}
 		})
 		select {
 		case <-done:
 			break
 		}
-		return next, err
+		return run, err
 	}
 }

@@ -8,8 +8,8 @@ import (
 
 func TestAt(t *testing.T) {
 	type args struct {
-		t      time.Time
-		states []Fn
+		t     time.Time
+		state Fn
 	}
 	tests := []struct {
 		name         string
@@ -20,14 +20,14 @@ func TestAt(t *testing.T) {
 		{
 			name: "exec now + 100ms",
 			args: args{
-				t:      time.Now().Add(iterDuration),
-				states: []Fn{stateWithTime(t, time.Now())},
+				t:     time.Now().Add(iterDuration),
+				state: stateWithTime(t, time.Now()),
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := At(tt.args.t, tt.args.states...)(context.Background())
+			_, err := At(tt.args.t, tt.args.state)(context.Background())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("At() error = %v, wantErr %v", err, tt.wantErr)
 				return

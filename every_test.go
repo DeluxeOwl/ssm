@@ -22,8 +22,8 @@ func stateWithTime(t *testing.T, startTime time.Time) Fn {
 
 func TestEvery(t *testing.T) {
 	type args struct {
-		e      time.Duration
-		states []Fn
+		e     time.Duration
+		state Fn
 	}
 	tests := []struct {
 		name         string
@@ -34,14 +34,14 @@ func TestEvery(t *testing.T) {
 		{
 			name: "exec in 100ms",
 			args: args{
-				e:      iterDuration,
-				states: []Fn{stateWithTime(t, time.Now())},
+				e:     iterDuration,
+				state: stateWithTime(t, time.Now()),
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := Every(tt.args.e, tt.args.states...)(context.Background())
+			_, err := Every(tt.args.e, tt.args.state)(context.Background())
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Every()() error = %v, wantErr %v", err, tt.wantErr)

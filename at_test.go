@@ -12,10 +12,9 @@ func TestAt(t *testing.T) {
 		state Fn
 	}
 	tests := []struct {
-		name         string
-		args         args
-		wantEndState bool
-		wantErr      bool
+		name     string
+		args     args
+		endState Fn
 	}{
 		{
 			name: "exec now + 100ms",
@@ -27,10 +26,9 @@ func TestAt(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := At(tt.args.t, tt.args.state)(context.Background())
-			if (err != nil) != tt.wantErr {
-				t.Errorf("At() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			got := At(tt.args.t, tt.args.state)(context.Background())
+			if ptrOf(got) != ptrOf(tt.endState) {
+				t.Errorf("At()() = %v, wantErr %v", got, tt.endState)
 			}
 		})
 	}

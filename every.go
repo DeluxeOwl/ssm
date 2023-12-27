@@ -23,18 +23,16 @@ func (e every) run(states ...Fn) Fn {
 		run = states[0]
 	}
 
-	var err error
-
-	return func(ctx context.Context) (Fn, error) {
+	return func(ctx context.Context) Fn {
 		done := make(chan struct{})
 		time.AfterFunc(time.Duration(e), func() {
-			run, err = run(ctx)
+			run = run(ctx)
 			done <- struct{}{}
 		})
 		select {
 		case <-done:
 			break
 		}
-		return run, err
+		return run
 	}
 }

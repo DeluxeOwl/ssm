@@ -9,14 +9,14 @@ import (
 var iterDuration = 100 * time.Millisecond
 
 func stateWithTime(t *testing.T, startTime time.Time) Fn {
-	return func(ctx context.Context) (Fn, error) {
+	return func(ctx context.Context) Fn {
 		diff := time.Now().Sub(startTime)
 		if diff.Truncate(time.Millisecond) != iterDuration {
 			t.Errorf("Execution time: %s, expected %s", diff, iterDuration)
 		} else {
 			t.Logf("Executed after %s", diff)
 		}
-		return End, nil
+		return End
 	}
 }
 
@@ -26,10 +26,9 @@ func TestEvery(t *testing.T) {
 		state Fn
 	}
 	tests := []struct {
-		name         string
-		args         args
-		wantEndState bool
-		wantErr      bool
+		name     string
+		args     args
+		endState Fn
 	}{
 		{
 			name: "exec in 100ms",
@@ -41,10 +40,9 @@ func TestEvery(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := Every(tt.args.e, tt.args.state)(context.Background())
-
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Every()() error = %v, wantErr %v", err, tt.wantErr)
+			got := Every(tt.args.e, tt.args.state)(context.Background())
+			if ptrOf(got) != ptrOf(tt.endState) {
+				t.Errorf("Every()() = %v, wantErr %v", got, tt.endState)
 			}
 		})
 	}

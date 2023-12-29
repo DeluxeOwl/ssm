@@ -12,7 +12,7 @@ func At(t time.Time, state Fn) Fn {
 type timer time.Time
 
 func (t timer) run(states ...Fn) Fn {
-	run := aggStates(states...)
+	run := batchStates(states...)
 	if run == nil {
 		return End
 	}

@@ -1,0 +1,9 @@
+image: alpine/edge
+packages:
+  - go
+sources:
+  - https://git.sr.ht/~mariusor/ssm
+tasks:
+  - test: |
+      cd ssm
+      go test -cover -v .

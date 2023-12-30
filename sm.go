@@ -21,14 +21,14 @@ func aggStates(batch aggregatorFn, states ...Fn) Fn {
 }
 
 func Run(ctx context.Context, states ...Fn) {
-	loopStates(ctx, batchStates(states...))
+	loop(ctx, batchStates(states...))
 }
 
 func RunParallel(ctx context.Context, states ...Fn) {
-	loopStates(ctx, parallelStates(states...))
+	loop(ctx, parallelStates(states...))
 }
 
-func loopStates(ctx context.Context, state Fn) {
+func loop(ctx context.Context, state Fn) {
 	if state == nil {
 		return
 	}

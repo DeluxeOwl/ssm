@@ -99,12 +99,12 @@ func TestErrorRestart(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := RestartError(tt.err)
+			got := ErrorRestart(tt.err)
 			if ptrOf(got) != ptrOf(tt.want) {
-				t.Errorf("RestartError() = %v, want %v", got, tt.want)
+				t.Errorf("ErrorRestart() = %v, want %v", got, tt.want)
 			}
 			if st := got(context.Background()); ptrOf(st) != ptrOf(End) {
-				t.Errorf("Post run state for RestartError() = %v, want %v", st, End)
+				t.Errorf("Post run state for ErrorRestart() = %v, want %v", st, End)
 			}
 		})
 	}

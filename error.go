@@ -7,9 +7,9 @@ func EndError(err error) Fn {
 	return errState{err}.runStop
 }
 
-// RestartError represents an error state which returns the first iteration passed.
+// ErrorRestart represents an error state which returns the first iteration passed.
 // This iteration is loaded from the context, and is saved there by the Run and RunParallel functions.
-func RestartError(err error) Fn {
+func ErrorRestart(err error) Fn {
 	return errState{err}.runRestart
 }
 

@@ -2,6 +2,8 @@ package ssm
 
 import "context"
 
+// Batch executes the received states sequentially, and accumulates the next states.
+// The resulting next state is returned as a sequential batch of all the non End states resolved.
 func Batch(states ...Fn) Fn {
 	if len(states) == 0 {
 		return nil

@@ -5,28 +5,28 @@ import (
 	"time"
 )
 
-func Every(e time.Duration, state Fn) Fn {
-	return every(e).run(state)
+// Every runs the received state after d time.Duration has elapsed.
+// This function blocks until the timer elapses, when it returns the next resolved state.
+func Every(d time.Duration, state Fn) Fn {
+	return timer(d).run(state)
 }
 
-type every time.Duration
+type timer time.Duration
 
-func (e every) run(states ...Fn) Fn {
+func (e timer) run(states ...Fn) Fn {
 	run := batchStates(states...)
 	if run == nil {
 		return End
 	}
 
 	return func(ctx context.Context) Fn {
-		done := make(chan struct{})
+		done := make(chan Fn)
 		time.AfterFunc(time.Duration(e), func() {
-			run = run(ctx)
-			done <- struct{}{}
+			done <- run(ctx)
 		})
 		select {
-		case <-done:
-			break
+		case next := <-done:
+			return next
 		}
-		return run
 	}
 }

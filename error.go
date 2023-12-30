@@ -2,18 +2,19 @@ package ssm
 
 import "context"
 
-type errState struct {
-	error
+// EndError represents an error state which returns an End state.
+func EndError(err error) Fn {
+	return errState{err}.runStop
 }
 
-func (e errState) Error() string {
-	return e.error.Error()
+// RestartError represents an error state which returns the first iteration passed.
+// This iteration is loaded from the context, and is saved there by the Run and RunParallel functions.
+func RestartError(err error) Fn {
+	return errState{err}.runRestart
 }
 
-type smKeys string
-
-const __start smKeys = "__start"
-
+// StartState retrieves the initial state from ctx context.Context.
+// If nothing is found it returns the End state.
 func StartState(ctx context.Context) Fn {
 	start := ctx.Value(__start)
 	if start == nil {
@@ -25,18 +26,23 @@ func StartState(ctx context.Context) Fn {
 	return End
 }
 
+type smKeys string
+
+const __start smKeys = "__start"
+
+// Error this state
+func (e errState) Error() string {
+	return e.error.Error()
+}
+
+type errState struct {
+	error
+}
+
 func (e errState) runStop(_ context.Context) Fn {
 	return End
 }
 
 func (e errState) runRestart(ctx context.Context) Fn {
 	return StartState(ctx)
-}
-
-func EndError(err error) Fn {
-	return errState{err}.runStop
-}
-
-func RestartError(err error) Fn {
-	return errState{err}.runRestart
 }

@@ -5,10 +5,8 @@ import (
 	"sync"
 )
 
-func parallelStates(states ...Fn) Fn {
-	return aggStates(Parallel, states...)
-}
-
+// Parallel executes the received states in parallel goroutines, and accumulates the next states.
+// The resulting next state is returned as a parallel batch of all the non End states resolved.
 func Parallel(states ...Fn) Fn {
 	if len(states) == 0 {
 		return nil
@@ -18,15 +16,18 @@ func Parallel(states ...Fn) Fn {
 		nextStates := make([]Fn, 0, len(states))
 
 		wg := sync.WaitGroup{}
+		m := sync.Mutex{}
 		for _, state := range states {
 			if state == nil {
 				continue
 			}
+			wg.Add(1)
 
 			go func(st Fn) {
-				wg.Add(1)
 				if next := st(ctx); next != nil {
+					m.Lock()
 					nextStates = append(nextStates, next)
+					m.Unlock()
 				}
 				wg.Done()
 			}(state)
@@ -35,4 +36,8 @@ func Parallel(states ...Fn) Fn {
 
 		return parallelStates(nextStates...)
 	}
+}
+
+func parallelStates(states ...Fn) Fn {
+	return aggStates(Parallel, states...)
 }

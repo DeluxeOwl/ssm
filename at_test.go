@@ -19,7 +19,7 @@ func TestAt(t *testing.T) {
 		{
 			name: "exec now + 100ms",
 			args: args{
-				t:     time.Now().Add(iterDuration),
+				t:     time.Now().Add(defaultDelay),
 				state: stateWithTime(t, time.Now()),
 			},
 		},

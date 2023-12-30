@@ -6,13 +6,13 @@ import (
 	"time"
 )
 
-var iterDuration = 100 * time.Millisecond
+const defaultDelay = 100 * time.Millisecond
 
 func stateWithTime(t *testing.T, startTime time.Time) Fn {
 	return func(ctx context.Context) Fn {
 		diff := time.Now().Sub(startTime)
-		if diff.Truncate(time.Millisecond) != iterDuration {
-			t.Errorf("Execution time: %s, expected %s", diff, iterDuration)
+		if diff.Truncate(time.Millisecond) != defaultDelay {
+			t.Errorf("Execution time: %s, expected %s", diff, defaultDelay)
 		} else {
 			t.Logf("Executed after %s", diff)
 		}
@@ -33,7 +33,7 @@ func TestEvery(t *testing.T) {
 		{
 			name: "exec in 100ms",
 			args: args{
-				e:     iterDuration,
+				e:     defaultDelay,
 				state: stateWithTime(t, time.Now()),
 			},
 		},

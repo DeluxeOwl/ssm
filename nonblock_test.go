@@ -6,13 +6,9 @@ import (
 	"time"
 )
 
-const defaultDelay = 100 * time.Millisecond
-
 var defaultTime = time.Now().Add(defaultDelay)
 
-func timedState(ctx context.Context) Fn {
-	return mockEmpty
-}
+var timedState = At(defaultTime, End)
 
 var expectedNonBlockingWaitState = new(nb).wait
 
@@ -35,7 +31,20 @@ func TestNonBlocking(t *testing.T) {
 		{
 			name:   "timed return mock empty",
 			states: []Fn{timedState},
-			want:   []Fn{expectedNonBlockingWaitState, mockEmpty, End},
+			want: []Fn{
+				// 10 times wait, then end state
+				expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState,
+				End,
+			},
 		},
 	}
 	for _, tt := range tests {

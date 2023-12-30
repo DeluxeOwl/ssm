@@ -1,5 +1,7 @@
 # Simple State Machine
 
+[![Build Status](https://builds.sr.ht/~mariusor/ssm.svg)](https://builds.sr.ht/~mariusor/ssm)
+
 This is a very basic API for creating State Machines.
 
 A state is represented by any function which accepts a context as a parameter and returns another state function.

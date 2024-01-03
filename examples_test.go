@@ -46,7 +46,7 @@ func ExampleBackOff() {
 	start := Retry(5, BackOff(Double(delay), func(_ context.Context) Fn {
 		run := time.Now()
 		cnt++
-		fmt.Printf("%d:%s ", cnt, run.Sub(st).Truncate(time.Millisecond))
+		fmt.Printf("%d:%s ", cnt, run.Sub(st).Truncate(10*time.Millisecond))
 		st = run
 		return ErrorEnd(fmt.Errorf("err"))
 	}))

@@ -8,7 +8,7 @@ import (
 
 const defaultDelay = 100 * time.Millisecond
 
-func stateWithTime(t *testing.T, startTime time.Time) Fn {
+func mockStateWithTime(t *testing.T, startTime time.Time) Fn {
 	return func(ctx context.Context) Fn {
 		diff := time.Now().Sub(startTime)
 		if diff.Truncate(time.Millisecond) != defaultDelay {
@@ -20,7 +20,7 @@ func stateWithTime(t *testing.T, startTime time.Time) Fn {
 	}
 }
 
-func TestEvery(t *testing.T) {
+func TestAfter(t *testing.T) {
 	type args struct {
 		e     time.Duration
 		state Fn
@@ -34,15 +34,15 @@ func TestEvery(t *testing.T) {
 			name: "exec in 100ms",
 			args: args{
 				e:     defaultDelay,
-				state: stateWithTime(t, time.Now()),
+				state: mockStateWithTime(t, time.Now()),
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := Every(tt.args.e, tt.args.state)(context.Background())
+			got := After(tt.args.e, tt.args.state)(context.Background())
 			if ptrOf(got) != ptrOf(tt.endState) {
-				t.Errorf("Every()() = %v, wantErr %v", got, tt.endState)
+				t.Errorf("After()() = %v, wantErr %v", got, tt.endState)
 			}
 		})
 	}

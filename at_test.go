@@ -20,7 +20,7 @@ func TestAt(t *testing.T) {
 			name: "exec now + 100ms",
 			args: args{
 				t:     time.Now().Add(defaultDelay),
-				state: stateWithTime(t, time.Now()),
+				state: mockStateWithTime(t, time.Now()),
 			},
 		},
 	}

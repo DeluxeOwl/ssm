@@ -4,6 +4,6 @@ packages:
 sources:
   - https://git.sr.ht/~mariusor/ssm
 tasks:
-  - test: |
+  - tests: |
       cd ssm
-      go test -cover -v .
+      go test -cover -race -v .

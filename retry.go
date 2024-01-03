@@ -13,13 +13,13 @@ func Retry(retries int, fn Fn) Fn {
 	return retry(retries, fn)
 }
 
-// BackOff returns an aggregator function which can be used to execute the received states with increasing delays.
-// The initial delay is passed through the delay time.Duration parameter, and the method of increase is delay *= 5
+// BackOff returns an aggregator function which can be used to execute the received state with increasing delays.
+// The function for determining the delay is passed in the StrategyFn "dur" parameter.
 //
 // There is no end condition, so take care to limit the execution through some external method.
-func BackOff(d StrategyFn, fn ...Fn) Fn {
+func BackOff(dur StrategyFn, fn Fn) Fn {
 	return func(ctx context.Context) Fn {
-		return after(d()).run(fn...)(ctx)
+		return after(dur()).run(fn)(ctx)
 	}
 }
 

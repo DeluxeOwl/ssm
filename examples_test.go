@@ -30,7 +30,7 @@ func (i *iter) next(ctx context.Context) Fn {
 	return i.next
 }
 
-func ExampleCountTo10() {
+func ExampleRun() {
 	ctx := context.WithValue(context.Background(), max, 10)
 
 	Run(ctx, start)
@@ -38,7 +38,7 @@ func ExampleCountTo10() {
 	// Output: start 0 1 2 3 4 5 6 7 8 9 10 end
 }
 
-func ExampleRetryWithBackOff() {
+func ExampleBackOff() {
 	st := time.Now()
 	cnt := 0
 
@@ -56,7 +56,7 @@ func ExampleRetryWithBackOff() {
 	// Output: Retries: 1:10ms 2:20ms 3:40ms 4:80ms 5:160ms
 }
 
-func ExampleSimpleRetry() {
+func ExampleRetry() {
 	st := time.Now()
 	cnt := 0
 

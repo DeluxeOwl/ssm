@@ -5,45 +5,55 @@ import (
 	"time"
 )
 
-// Retry is a way to construct a state machine out of repeating the execution of received "fn", until the number of
-// "retries" has been reached, or "fn" returns no error.
+// Retry is a way to construct a state machine out of repeating the execution of received state "fn", until the number of
+// "retries" has been reached, or "fn" returns the End state.
 // The "strategy" parameter can be used as a way to delay the execution between retries. If nil is passed the Batch
 // aggregator function is used, which just executes the code sequentially without pause.
-func Retry(retries int, strategy aggregatorFn, fn func(ctx context.Context) error) Fn {
-	return retry(retries, strategy, fn)
-}
-
-func retry(times int, strategy aggregatorFn, fn func(context.Context) error) Fn {
-	if strategy == nil {
-		strategy = Batch
-	}
-	return func(ctx context.Context) Fn {
-		for {
-			if err := fn(ctx); err == nil {
-				break
-			}
-			if times-1 <= 0 {
-				break
-			}
-			return strategy(retry(times-1, strategy, fn))
-		}
-		return End
-	}
+func Retry(retries int, fn Fn) Fn {
+	return retry(retries, fn)
 }
 
 // BackOff returns an aggregator function which can be used to execute the received states with increasing delays.
 // The initial delay is passed through the delay time.Duration parameter, and the method of increase is delay *= 5
 //
 // There is no end condition, so take care to limit the execution through some external method.
-func BackOff(delay time.Duration) aggregatorFn {
-	bb := backoff(delay)
-	return bb.run
+func BackOff(d StrategyFn, fn ...Fn) Fn {
+	return func(ctx context.Context) Fn {
+		return after(d()).run(fn...)(ctx)
+	}
 }
 
-type backoff time.Duration
+func retry(retries int, fn Fn) Fn {
+	return func(ctx context.Context) Fn {
+		for {
+			next := fn(ctx)
+			if next == nil {
+				break
+			}
+			if retries-1 <= 0 {
+				break
+			}
+			return retry(retries-1, fn)
+		}
+		return End
+	}
+}
 
-func (b *backoff) run(states ...Fn) Fn {
-	nextRun := time.Now().Add(time.Duration(*b))
-	*b = 5 * (*b)
-	return alarm(nextRun).run(states...)
+// StrategyFn is the type that returns the desired time.Duration for the BackOff function.
+type StrategyFn func() time.Duration
+
+// Constant returns a constant time.Duration for every call.
+func Constant(d time.Duration) StrategyFn {
+	return func() time.Duration {
+		return d
+	}
+}
+
+// Double returns the double of the time.Duration for every call.
+func Double(d time.Duration) StrategyFn {
+	return func() time.Duration {
+		t := d
+		d *= 2
+		return t
+	}
 }

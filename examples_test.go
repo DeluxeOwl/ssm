@@ -43,26 +43,30 @@ func ExampleRetryWithBackOff() {
 	cnt := 0
 
 	fmt.Printf("Retries: ")
-	start := Retry(4, BackOff(delay), func(_ context.Context) error {
+	start := Retry(5, BackOff(Double(delay), func(_ context.Context) Fn {
+		run := time.Now()
 		cnt++
-		fmt.Printf("%d:%s ", cnt, time.Now().Sub(st).Truncate(delay))
-		return fmt.Errorf("err")
-	})
+		fmt.Printf("%d:%s ", cnt, run.Sub(st).Truncate(time.Millisecond))
+		st = run
+		return ErrorEnd(fmt.Errorf("err"))
+	}))
 
 	Run(context.Background(), start)
 
-	// Output: Retries: 1:0s 2:10ms 3:60ms 4:310ms
+	// Output: Retries: 1:10ms 2:20ms 3:40ms 4:80ms 5:160ms
 }
 
-func ExampleRetryWithBatch() {
+func ExampleSimpleRetry() {
 	st := time.Now()
 	cnt := 0
 
 	fmt.Printf("Retries: ")
-	start := Retry(10, Batch, func(_ context.Context) error {
+	start := Retry(10, func(_ context.Context) Fn {
 		cnt++
-		fmt.Printf("%d:%s ", cnt, time.Now().Sub(st).Truncate(delay))
-		return fmt.Errorf("err")
+		run := time.Now()
+		fmt.Printf("%d:%s ", cnt, run.Sub(st).Truncate(time.Millisecond))
+		st = run
+		return ErrorEnd(fmt.Errorf("err"))
 	})
 
 	Run(context.Background(), start)

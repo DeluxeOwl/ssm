@@ -9,42 +9,56 @@ import (
 
 const delay = 10 * time.Millisecond
 
-var backOffZero = backoff(0)
-var backOffTen = backoff(10)
+func mockStateWithDelay(t *testing.T, delay time.Duration) Fn {
+	startTime := time.Now()
+	i := 0
+	return func(ctx context.Context) Fn {
+		diff := time.Now().Sub(startTime)
+		trunc := delay
+		if delay < time.Millisecond {
+			trunc = 10 * time.Microsecond
+		}
+		if diff.Truncate(trunc) != delay {
+			t.Errorf("Execution time: %s, expected %s", diff, delay)
+		} else {
+			t.Logf("Executed after %s", diff)
+		}
+		i++
+		startTime = time.Now()
+		return End
+	}
+}
 
 func TestBackOff(t *testing.T) {
 	tests := []struct {
 		name string
 		d    time.Duration
-		want aggregatorFn
 	}{
 		{
-			name: "zero",
-			d:    0,
-			want: backOffZero.run,
+			name: "ten",
+			d:    10 * time.Millisecond,
 		},
 		{
-			name: "ten",
-			d:    10,
-			want: backOffTen.run,
+			name: "hundred",
+			d:    100 * time.Millisecond,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := BackOff(tt.d); ptrOf(got) != ptrOf(tt.want) {
-				t.Errorf("BackOff() = %v, want %v", got, tt.want)
-			}
+			got := BackOff(Constant(tt.d), mockStateWithDelay(t, tt.d))
+			got(context.Background())
+			got(context.Background())
 		})
 	}
 }
 
-func mockMaxRetry(retries int) func(_ context.Context) error {
+func mockMaxRetry(retries int) func(_ context.Context) Fn {
 	for i := 0; i < retries; i++ {
-		return func(_ context.Context) error {
-			return fmt.Errorf("error")
+		return func(_ context.Context) Fn {
+			return ErrorEnd(fmt.Errorf("error"))
 		}
 	}
-	return func(_ context.Context) error {
+	return func(_ context.Context) Fn {
 		return nil
 	}
 }
@@ -54,9 +68,8 @@ var retryNone = mockMaxRetry(0)
 
 func TestRetry(t *testing.T) {
 	type args struct {
-		retries  int
-		strategy aggregatorFn
-		fn       func(ctx context.Context) error
+		retries int
+		fn      Fn
 	}
 	tests := []struct {
 		name string
@@ -64,18 +77,25 @@ func TestRetry(t *testing.T) {
 		want Fn
 	}{
 		{
-			name: "we get what we get",
+			name: "one run",
 			args: args{
-				retries:  0,
-				strategy: nil,
-				fn:       retryOnce,
+				retries: 0,
+				fn:      retryOnce,
 			},
-			want: retry(0, nil, retryOnce),
+			want: retry(0, retryOnce),
+		},
+		{
+			name: "one retry",
+			args: args{
+				retries: 1,
+				fn:      retryNone,
+			},
+			want: retry(1, retryNone),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := Retry(tt.args.retries, tt.args.strategy, tt.args.fn); ptrOf(got) != ptrOf(tt.want) {
+			if got := Retry(tt.args.retries, tt.args.fn); ptrOf(got) != ptrOf(tt.want) {
 				t.Errorf("Retry() = %v, want %v", got, tt.want)
 			}
 		})

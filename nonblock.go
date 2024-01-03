@@ -40,7 +40,7 @@ func (n nb) wait(ctx context.Context) Fn {
 	select {
 	case <-ctx.Done():
 		if err := ctx.Err(); err != nil {
-			return EndError(err)
+			return ErrorEnd(err)
 		}
 		return End
 	case next := <-n:

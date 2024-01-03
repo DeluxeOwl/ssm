@@ -11,7 +11,7 @@ func mockEmpty(_ context.Context) Fn {
 	return End
 }
 
-func ptrOf(t Fn) int64 {
+func ptrOf(t any) int64 {
 	return int64(reflect.ValueOf(t).Pointer())
 }
 
@@ -60,12 +60,12 @@ func TestError(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := EndError(tt.err)
+			got := ErrorEnd(tt.err)
 			if ptrOf(got) != ptrOf(tt.want) {
-				t.Errorf("EndError() = %v, want %v", got, tt.want)
+				t.Errorf("ErrorEnd() = %v, want %v", got, tt.want)
 			}
 			if st := got(context.Background()); ptrOf(st) != ptrOf(End) {
-				t.Errorf("Post run state for EndError() = %v, want %v", st, End)
+				t.Errorf("Post run state for ErrorEnd() = %v, want %v", st, End)
 			}
 		})
 	}

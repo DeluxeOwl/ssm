@@ -2,8 +2,8 @@ package ssm
 
 import "context"
 
-// EndError represents an error state which returns an End state.
-func EndError(err error) Fn {
+// ErrorEnd represents an error state which returns an End state.
+func ErrorEnd(err error) Fn {
 	return errState{err}.runStop
 }
 

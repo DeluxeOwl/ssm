@@ -19,9 +19,13 @@ func (e after) run(states ...Fn) Fn {
 		return End
 	}
 
+	return runAfter(time.Duration(e), run)
+}
+
+func runAfter(d time.Duration, run Fn) Fn {
 	return func(ctx context.Context) Fn {
 		done := make(chan Fn)
-		time.AfterFunc(time.Duration(e), func() {
+		time.AfterFunc(d, func() {
 			done <- run(ctx)
 		})
 		select {

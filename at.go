@@ -1,7 +1,6 @@
 package ssm
 
 import (
-	"context"
 	"time"
 )
 
@@ -19,16 +18,5 @@ func (t alarm) run(states ...Fn) Fn {
 		return End
 	}
 
-	return func(ctx context.Context) Fn {
-		done := make(chan struct{})
-		time.AfterFunc(time.Time(t).Sub(time.Now()), func() {
-			run = run(ctx)
-			done <- struct{}{}
-		})
-		select {
-		case <-done:
-			break
-		}
-		return run
-	}
+	return runAfter(time.Time(t).Sub(time.Now()), run)
 }

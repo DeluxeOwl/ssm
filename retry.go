@@ -26,8 +26,7 @@ func BackOff(d StrategyFn, fn ...Fn) Fn {
 func retry(retries int, fn Fn) Fn {
 	return func(ctx context.Context) Fn {
 		for {
-			next := fn(ctx)
-			if next == nil {
+			if next := fn(ctx); next == nil {
 				break
 			}
 			if retries-1 <= 0 {

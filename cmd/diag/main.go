@@ -75,27 +75,66 @@ func main() {
 			if !ok {
 				return true
 			}
-			// NOTE(marius) we're looking for functions that have one parameter which is a context.Context
-			// and a return which is a ssm.Fn
-			if fn.Type.Results == nil || len(fn.Type.Results.List) != 1 {
-				return true
-			}
-			if fn.Type.Params == nil || len(fn.Type.Params.List) != 1 {
-				return true
-			}
-			fmt.Printf("%s (", fn.Name)
-			for _, par := range fn.Type.Params.List {
-				fmt.Printf("%s ", par.Type)
-			}
-			fmt.Print(") ")
-			for _, res := range fn.Type.Results.List {
-				fmt.Printf("%s ", res.Type)
-			}
-			fmt.Print("\n")
 
+			// NOTE(marius) we're looking for functions that return a ssm.Fn
+			if s, ok := isStateFn(fn); ok {
+				fmt.Printf("%v\n", s)
+			}
 			return true
 		}), f)
 	}
+}
+
+type StateNode struct {
+	Name       string
+	NextStates []string
+}
+
+func isStateFn(n ast.Node) (*StateNode, bool) {
+	fn, ok := n.(*ast.FuncDecl)
+	if !ok {
+		return nil, false
+	}
+	if fn.Type.Results == nil || len(fn.Type.Results.List) != 1 {
+		return nil, false
+	}
+
+	result := fn.Type.Results.List[0]
+
+	if !returnIsValid(result) {
+		return nil, false
+	}
+
+	res := StateNode{
+		Name: fn.Name.String(),
+	}
+	ast.Walk(walker(func(n ast.Node) bool {
+		ret, ok := n.(*ast.ReturnStmt)
+		if !ok {
+			return true
+		}
+		for _, rr := range ret.Results {
+			if fn, ok := rr.(*ast.Ident); ok {
+				res.NextStates = append(res.NextStates, fn.String())
+			}
+			//fmt.Printf("  %T:%v \n", rr, rr)
+		}
+		return true
+	}), n)
+	return &res, true
+}
+
+func returnIsValid(r ast.Node) bool {
+	par, ok := r.(*ast.Field)
+	if !ok {
+		return false
+	}
+	if typ, ok := par.Type.(*ast.Ident); ok {
+		if typ.Name == "Fn" {
+			return true
+		}
+	}
+	return false
 }
 
 // walker adapts a function to satisfy the ast.Visitor interface.

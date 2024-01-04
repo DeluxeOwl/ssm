@@ -59,7 +59,7 @@ func mockMaxRetry(retries int) func(_ context.Context) Fn {
 		}
 	}
 	return func(_ context.Context) Fn {
-		return nil
+		return End
 	}
 }
 

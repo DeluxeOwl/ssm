@@ -9,7 +9,7 @@ import (
 // The resulting next state is returned as a parallel batch of all the non End states resolved.
 func Parallel(states ...Fn) Fn {
 	if len(states) == 0 {
-		return nil
+		return End
 	}
 
 	return func(ctx context.Context) Fn {

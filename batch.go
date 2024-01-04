@@ -6,7 +6,7 @@ import "context"
 // The resulting next state is returned as a sequential batch of all the non End states resolved.
 func Batch(states ...Fn) Fn {
 	if len(states) == 0 {
-		return nil
+		return End
 	}
 	return func(ctx context.Context) Fn {
 		nextStates := make([]Fn, 0, len(states))

@@ -77,8 +77,7 @@ func main() {
 			}
 
 			// NOTE(marius) we're looking for functions that return a ssm.Fn
-			if s, ok := isStateFn(fn); ok {
-				fmt.Printf("%v\n", s)
+			if _, ok := isStateFn(fn); ok {
 			}
 			return true
 		}), f)
@@ -87,6 +86,7 @@ func main() {
 
 type StateNode struct {
 	Name       string
+	Alias      string
 	NextStates []string
 }
 
@@ -105,6 +105,11 @@ func isStateFn(n ast.Node) (*StateNode, bool) {
 		return nil, false
 	}
 
+	if fn.Recv != nil {
+		fmt.Printf("%v - %v\n", fn.Recv, fn.Name.String())
+	} else {
+		fmt.Printf("%v\n", fn.Name.String())
+	}
 	res := StateNode{
 		Name: fn.Name.String(),
 	}
@@ -114,10 +119,20 @@ func isStateFn(n ast.Node) (*StateNode, bool) {
 			return true
 		}
 		for _, rr := range ret.Results {
+			if _, ok := rr.(*ast.CallExpr); ok {
+				//fmt.Printf("  callexpr: %v", rr)
+				continue
+			}
 			if fn, ok := rr.(*ast.Ident); ok {
 				res.NextStates = append(res.NextStates, fn.String())
+			} else if fn, ok := rr.(*ast.FuncLit); ok {
+				fmt.Printf("  literal: %v", fn)
+			} else if fn, ok := rr.(*ast.FuncType); ok {
+				fmt.Printf("  func type: %v", fn)
+			} else {
+				fmt.Printf("  %T: %v", rr, rr)
 			}
-			//fmt.Printf("  %T:%v \n", rr, rr)
+
 		}
 		return true
 	}), n)

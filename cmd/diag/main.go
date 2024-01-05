@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -32,13 +33,14 @@ func loadPathsFromArgs() []string {
 	return dirs
 }
 
-func filesFromArgs() []string {
+func filesFromArgs() ([]string, error) {
 	dirs := loadPathsFromArgs()
 	files := make([]string, 0)
 	isGoFile := func(path string) bool {
 		fi, _ := os.Stat(path)
 		return !fi.IsDir() && filepath.Ext(path) == ".go"
 	}
+	errs := make([]error, 0)
 	for _, dir := range dirs {
 		if isGoFile(dir) {
 			files = append(files, dir)
@@ -52,28 +54,41 @@ func filesFromArgs() []string {
 			return nil
 		})
 		if err != nil {
-			log.Printf("error: %s", err)
+			errs = append(errs, err)
 		}
 	}
-	return files
+	return files, errors.Join(errs...)
 }
 
 func main() {
 	flag.Parse()
 
-	files := filesFromArgs()
+	files, err := filesFromArgs()
+	if err != nil {
+		log.Panicf("Error: %s", err)
+	}
 
+	states, err := loadStatesFromFiles(files)
+	if err != nil {
+		log.Panicf("Error: %s", err)
+	}
+	fmt.Printf("%v", states)
+}
+
+func loadStatesFromFiles(files []string) ([]stateNode, error) {
+	states := make([]stateNode, 0)
 	fset := token.NewFileSet()
+	errs := make([]error, 0)
 	for _, file := range files {
 		data, err := os.ReadFile(file)
 		if err != nil {
-			log.Printf("error: %s", err)
+			errs = append(errs, err)
 			continue
 		}
 
 		f, err := parser.ParseFile(fset, file, data, parser.ParseComments)
 		if err != nil {
-			log.Printf("error: %s", err)
+			errs = append(errs, err)
 			continue
 		}
 		importsSsm := false
@@ -85,27 +100,33 @@ func main() {
 		if !importsSsm {
 			continue
 		}
-		ast.Walk(walker(func(n ast.Node) bool {
-			fn, ok := n.(*ast.FuncDecl)
-			if !ok {
-				return true
-			}
-
-			// NOTE(marius) we're looking for functions that return a ssm.Fn
-			if _, ok := isStateFn(fn); ok {
-			}
-			return true
-		}), f)
+		states = append(states, loadStatesFromFile(f)...)
 	}
+	return states, errors.Join(errs...)
 }
 
-type StateNode struct {
+func loadStatesFromFile(f *ast.File) []stateNode {
+	states := make([]stateNode, 0)
+	ast.Walk(walker(func(n ast.Node) bool {
+		fn, ok := n.(*ast.FuncDecl)
+		if !ok {
+			return true
+		}
+		if state, ok := loadStateFromFuncDecl(fn); ok {
+			states = append(states, *state)
+		}
+		return true
+	}), f)
+	return states
+}
+
+type stateNode struct {
 	Name       string
 	Alias      string
 	NextStates []string
 }
 
-func isStateFn(n ast.Node) (*StateNode, bool) {
+func loadStateFromFuncDecl(n ast.Node) (*stateNode, bool) {
 	fn, ok := n.(*ast.FuncDecl)
 	if !ok {
 		return nil, false
@@ -136,13 +157,12 @@ func isStateFn(n ast.Node) (*StateNode, bool) {
 		name = fn.Name.String()
 	}
 
-	res := StateNode{
+	res := stateNode{
 		Name: name,
 	}
 	res.NextStates = make([]string, 0)
 	ast.Walk(walker(getReturns(&res.NextStates)), n)
 
-	fmt.Printf("  %v\n", res)
 	return &res, true
 }
 

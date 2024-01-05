@@ -12,6 +12,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/emicklei/dot"
 )
 
 const (
@@ -72,7 +74,25 @@ func main() {
 	if err != nil {
 		log.Panicf("Error: %s", err)
 	}
-	fmt.Printf("%v", states)
+	g := dot.NewGraph(dot.Directed)
+	references := make(map[string]dot.Node)
+	for _, state := range states {
+		references[state.Name] = g.Node(state.Name)
+	}
+	for _, state := range states {
+		n1, ok := references[state.Name]
+		if !ok {
+			continue
+		}
+		for _, next := range state.NextStates {
+			n2, ok := references[next]
+			if !ok {
+				continue
+			}
+			g.Edge(n1, n2)
+		}
+	}
+	fmt.Println(g.String())
 }
 
 func loadStatesFromFiles(files []string) ([]stateNode, error) {

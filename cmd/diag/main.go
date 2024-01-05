@@ -10,6 +10,12 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
+)
+
+const (
+	ssmModulePath = "git.sr.ht/~mariusor/ssm"
+	ssmStateType  = "Fn"
 )
 
 func loadPathsFromArgs() []string {
@@ -70,6 +76,15 @@ func main() {
 			log.Printf("error: %s", err)
 			continue
 		}
+		importsSsm := false
+		for _, imp := range f.Imports {
+			if strings.Trim(imp.Path.Value, `"`) == ssmModulePath {
+				importsSsm = true
+			}
+		}
+		if !importsSsm {
+			continue
+		}
 		ast.Walk(walker(func(n ast.Node) bool {
 			fn, ok := n.(*ast.FuncDecl)
 			if !ok {
@@ -105,38 +120,69 @@ func isStateFn(n ast.Node) (*StateNode, bool) {
 		return nil, false
 	}
 
+	var name string
 	if fn.Recv != nil {
-		fmt.Printf("%v - %v\n", fn.Recv, fn.Name.String())
+		recv := fn.Recv.List[0]
+		if t, ok := recv.Type.(*ast.StarExpr); ok {
+			if id, ok := t.X.(*ast.Ident); ok {
+				name = fmt.Sprintf("*%s", id.String())
+			}
+		}
+		if id, ok := recv.Type.(*ast.Ident); ok {
+			name = fmt.Sprintf("%s", id.String())
+		}
+		name = name + "." + fn.Name.String()
 	} else {
-		fmt.Printf("%v\n", fn.Name.String())
+		name = fn.Name.String()
 	}
+
 	res := StateNode{
-		Name: fn.Name.String(),
+		Name: name,
 	}
-	ast.Walk(walker(func(n ast.Node) bool {
+	res.NextStates = make([]string, 0)
+	ast.Walk(walker(getReturns(&res.NextStates)), n)
+
+	fmt.Printf("  %v\n", res)
+	return &res, true
+}
+
+func getReturns(nextStates *[]string) func(n ast.Node) bool {
+	return func(n ast.Node) bool {
 		ret, ok := n.(*ast.ReturnStmt)
 		if !ok {
 			return true
 		}
 		for _, rr := range ret.Results {
-			if _, ok := rr.(*ast.CallExpr); ok {
-				//fmt.Printf("  callexpr: %v", rr)
-				continue
-			}
-			if fn, ok := rr.(*ast.Ident); ok {
-				res.NextStates = append(res.NextStates, fn.String())
-			} else if fn, ok := rr.(*ast.FuncLit); ok {
-				fmt.Printf("  literal: %v", fn)
+			if cfn, ok := rr.(*ast.CallExpr); ok {
+				*nextStates = append(*nextStates, getFuncName(cfn.Fun))
+			} else if fn, ok := rr.(*ast.Ident); ok {
+				*nextStates = append(*nextStates, fn.String())
+				//} else if fn, ok := rr.(*ast.FuncLit); ok {
+				//	for _, rs := range fn.Body.List {
+				//		ast.Walk(walker(getReturns(nextStates)), rs)
+				//	}
 			} else if fn, ok := rr.(*ast.FuncType); ok {
 				fmt.Printf("  func type: %v", fn)
-			} else {
-				fmt.Printf("  %T: %v", rr, rr)
+			} else if sel, ok := rr.(*ast.SelectorExpr); ok {
+				*nextStates = append(*nextStates, sel.Sel.String())
 			}
-
 		}
 		return true
-	}), n)
-	return &res, true
+	}
+}
+
+func getFuncName(ex ast.Expr) string {
+	var ident *ast.Ident
+	if typ, ok := ex.(*ast.SelectorExpr); ok {
+		ident = typ.Sel
+	}
+	if typ, ok := ex.(*ast.Ident); ok {
+		ident = typ
+	}
+	if ident == nil {
+		return ""
+	}
+	return ident.String()
 }
 
 func returnIsValid(r ast.Node) bool {
@@ -144,12 +190,7 @@ func returnIsValid(r ast.Node) bool {
 	if !ok {
 		return false
 	}
-	if typ, ok := par.Type.(*ast.Ident); ok {
-		if typ.Name == "Fn" {
-			return true
-		}
-	}
-	return false
+	return getFuncName(par.Type) == ssmStateType
 }
 
 // walker adapts a function to satisfy the ast.Visitor interface.

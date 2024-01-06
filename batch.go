@@ -12,7 +12,7 @@ func Batch(states ...Fn) Fn {
 		nextStates := make([]Fn, 0, len(states))
 
 		for _, state := range states {
-			if state == nil {
+			if IsEnd(state) {
 				continue
 			}
 

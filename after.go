@@ -15,7 +15,7 @@ type after time.Duration
 
 func (e after) run(states ...Fn) Fn {
 	run := batchStates(states...)
-	if run == nil {
+	if IsEnd(run) {
 		return End
 	}
 

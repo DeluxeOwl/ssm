@@ -27,7 +27,7 @@ func BackOff(dur StrategyFn, fn Fn) Fn {
 func retry(retries int, fn Fn) Fn {
 	return func(ctx context.Context) Fn {
 		for {
-			if next := fn(ctx); next == nil {
+			if next := fn(ctx); !IsError(next) {
 				break
 			}
 			if retries-1 <= 0 {
@@ -50,7 +50,7 @@ func Constant(d time.Duration) StrategyFn {
 }
 
 // Linear returns the linear function of the time.Duration multiplied by mul for every call.
-func Linear(d time.Duration, m int) StrategyFn {
+func Linear(d time.Duration, m float64) StrategyFn {
 	return func() time.Duration {
 		t := d
 		d = time.Duration(m) * d

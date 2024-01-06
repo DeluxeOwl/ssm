@@ -18,7 +18,7 @@ func Parallel(states ...Fn) Fn {
 		wg := sync.WaitGroup{}
 		m := sync.Mutex{}
 		for _, state := range states {
-			if state == nil {
+			if IsEnd(state) {
 				continue
 			}
 			wg.Add(1)

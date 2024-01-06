@@ -3,16 +3,11 @@ package ssm
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"testing"
 )
 
 func mockEmpty(_ context.Context) Fn {
 	return End
-}
-
-func ptrOf(t any) int64 {
-	return int64(reflect.ValueOf(t).Pointer())
 }
 
 func TestStartState(t *testing.T) {
@@ -105,6 +100,54 @@ func TestErrorRestart(t *testing.T) {
 			}
 			if st := got(context.Background()); ptrOf(st) != ptrOf(End) {
 				t.Errorf("Post run state for ErrorRestart() = %v, want %v", st, End)
+			}
+		})
+	}
+}
+
+func TestIsError(t *testing.T) {
+	tests := []struct {
+		name string
+		f    Fn
+		want bool
+	}{
+		{
+			name: "nil",
+			f:    nil,
+			want: false,
+		},
+		{
+			name: "End",
+			f:    End,
+			want: false,
+		},
+		{
+			name: "mockEmpty",
+			f:    mockEmpty,
+			want: false,
+		},
+		{
+			name: "state func literal",
+			f: func(ctx context.Context) Fn {
+				return End
+			},
+			want: false,
+		},
+		{
+			name: "ErrorEnd",
+			f:    ErrorEnd(fmt.Errorf("test")),
+			want: true,
+		},
+		{
+			name: "ErrorRestart",
+			f:    ErrorRestart(fmt.Errorf("test")),
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsError(tt.f); got != tt.want {
+				t.Errorf("IsError() = %v, want %v", got, tt.want)
 			}
 		})
 	}

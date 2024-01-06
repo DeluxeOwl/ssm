@@ -1,6 +1,9 @@
 package ssm
 
-import "context"
+import (
+	"context"
+	"reflect"
+)
 
 // ErrorEnd represents an error state which returns an End state.
 func ErrorEnd(err error) Fn {
@@ -37,6 +40,27 @@ func (e errState) Error() string {
 
 type errState struct {
 	error
+}
+
+type ErrorFn Fn
+
+func (f Fn) Error() string {
+	return "error"
+}
+
+func ptrOf(t any) int64 {
+	return int64(reflect.ValueOf(t).Pointer())
+}
+
+var (
+	_ptrEndStop    = ptrOf(errState{}.runStop)
+	_ptrEndRestart = ptrOf(errState{}.runRestart)
+)
+
+// IsError ver grubby API to check if a state Fn is an error state
+func IsError(f Fn) bool {
+	p := ptrOf(f)
+	return p == _ptrEndStop || p == _ptrEndRestart
 }
 
 func (e errState) runStop(_ context.Context) Fn {

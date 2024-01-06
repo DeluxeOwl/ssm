@@ -56,7 +56,7 @@ func TestNonBlocking(t *testing.T) {
 }
 
 func testLoopStates(t *testing.T, start Fn, expected ...Fn) {
-	if start == nil {
+	if IsEnd(start) {
 		return
 	}
 
@@ -67,7 +67,7 @@ func testLoopStates(t *testing.T, start Fn, expected ...Fn) {
 		if ptrOf(next) != ptrOf(exp) {
 			t.Errorf("Invalid state at iteration %d = %v, want %v", i, next, exp)
 		}
-		if next == nil {
+		if IsEnd(next) {
 			break
 		}
 		start = next

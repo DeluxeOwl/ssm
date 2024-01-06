@@ -14,7 +14,7 @@ type alarm time.Time
 
 func (t alarm) run(states ...Fn) Fn {
 	run := batchStates(states...)
-	if run == nil {
+	if IsEnd(run) {
 		return End
 	}
 

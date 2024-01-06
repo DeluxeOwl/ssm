@@ -2,6 +2,7 @@ package ssm
 
 import (
 	"context"
+	"math/rand"
 	"time"
 )
 
@@ -48,11 +49,19 @@ func Constant(d time.Duration) StrategyFn {
 	}
 }
 
-// Double returns the double of the time.Duration for every call.
-func Double(d time.Duration) StrategyFn {
+// Linear returns the linear function of the time.Duration multiplied by mul for every call.
+func Linear(d time.Duration, m int) StrategyFn {
 	return func() time.Duration {
 		t := d
-		d *= 2
+		d = time.Duration(m) * d
 		return t
+	}
+}
+
+// Jitter adds random jitter of max time.Duration for the fn StrategyFn
+func Jitter(max time.Duration, fn StrategyFn) StrategyFn {
+	j := rand.Int63n(int64(max))
+	return func() time.Duration {
+		return fn() + time.Duration(j)
 	}
 }

@@ -46,7 +46,7 @@ func ExampleBackOff() {
 	cnt := 0
 
 	fmt.Printf("Retries: ")
-	start := sm.Retry(5, sm.BackOff(sm.Double(delay), func(_ context.Context) sm.Fn {
+	start := sm.Retry(5, sm.BackOff(sm.Linear(delay, 2), func(_ context.Context) sm.Fn {
 		run := time.Now()
 		cnt++
 		fmt.Printf("%d:%s ", cnt, run.Sub(st).Truncate(10*time.Millisecond))
@@ -57,6 +57,27 @@ func ExampleBackOff() {
 	sm.Run(context.Background(), start)
 
 	// Output: Retries: 1:10ms 2:20ms 3:40ms 4:80ms 5:160ms
+}
+
+func ExampleBackOff2() {
+	st := time.Now()
+	cnt := 0
+
+	fmt.Printf("Retries: ")
+	start := sm.Retry(5, sm.BackOff(sm.Linear(delay, 2), func(_ context.Context) sm.Fn {
+		run := time.Now()
+		cnt++
+		fmt.Printf("%d:%s ", cnt, run.Sub(st).Truncate(10*time.Millisecond))
+		st = run
+		if cnt < 4 {
+			return sm.ErrorEnd(fmt.Errorf("err"))
+		}
+		return sm.End
+	}))
+
+	sm.Run(context.Background(), start)
+
+	// Output: Retries: 1:10ms 2:20ms 3:40ms 4:80ms
 }
 
 func ExampleRetry() {
@@ -75,4 +96,26 @@ func ExampleRetry() {
 	sm.Run(context.Background(), start)
 
 	// Output: Retries: 1:0s 2:0s 3:0s 4:0s 5:0s 6:0s 7:0s 8:0s 9:0s 10:0s
+}
+
+func ExampleRetry2() {
+	st := time.Now()
+	cnt := 0
+
+	fmt.Printf("Retries: ")
+	start := sm.Retry(10, sm.BackOff(sm.Linear(delay, 2), func(_ context.Context) sm.Fn {
+		run := time.Now()
+		cnt++
+		fmt.Printf("%d:%s ", cnt, run.Sub(st).Truncate(10*time.Millisecond))
+		st = run
+		if cnt < 4 {
+			return sm.ErrorEnd(fmt.Errorf("err"))
+		}
+		// We resolve to a non error state after 4 retries
+		return sm.End
+	}))
+
+	sm.Run(context.Background(), start)
+
+	// Output: Retries: 1:10ms 2:20ms 3:40ms 4:80ms
 }

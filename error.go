@@ -44,7 +44,7 @@ type errState struct {
 
 type ErrorFn Fn
 
-func (f Fn) Error() string {
+func (f ErrorFn) Error() string {
 	return "error"
 }
 

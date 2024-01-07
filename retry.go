@@ -27,15 +27,15 @@ func BackOff(dur StrategyFn, fn Fn) Fn {
 func retry(retries int, fn Fn) Fn {
 	return func(ctx context.Context) Fn {
 		for {
-			if next := fn(ctx); !IsError(next) {
-				break
+			next := fn(ctx)
+			if !IsError(next) {
+				return next
 			}
 			if retries-1 <= 0 {
-				break
+				return next
 			}
 			return retry(retries-1, fn)
 		}
-		return End
 	}
 }
 

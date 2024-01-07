@@ -161,21 +161,7 @@ func loadStateFromFuncDecl(n ast.Node) (*stateNode, bool) {
 		return nil, false
 	}
 
-	var name string
-	if fn.Recv != nil {
-		recv := fn.Recv.List[0]
-		if t, ok := recv.Type.(*ast.StarExpr); ok {
-			if id, ok := t.X.(*ast.Ident); ok {
-				name = fmt.Sprintf("*%s", id.String())
-			}
-		}
-		if id, ok := recv.Type.(*ast.Ident); ok {
-			name = fmt.Sprintf("%s", id.String())
-		}
-		name = name + "." + fn.Name.String()
-	} else {
-		name = fn.Name.String()
-	}
+	name := getFuncNameFromNode(fn)
 
 	res := stateNode{
 		Name: name,
@@ -194,35 +180,72 @@ func getReturns(nextStates *[]string) func(n ast.Node) bool {
 		}
 		for _, rr := range ret.Results {
 			if cfn, ok := rr.(*ast.CallExpr); ok {
-				*nextStates = append(*nextStates, getFuncName(cfn.Fun))
+				*nextStates = append(*nextStates, getFuncNameFromExpr(cfn.Fun))
 			} else if fn, ok := rr.(*ast.Ident); ok {
 				*nextStates = append(*nextStates, fn.String())
-				//} else if fn, ok := rr.(*ast.FuncLit); ok {
-				//	for _, rs := range fn.Body.List {
-				//		ast.Walk(walker(getReturns(nextStates)), rs)
-				//	}
+			} else if fn, ok := rr.(*ast.FuncLit); ok {
+				for _, rs := range fn.Body.List {
+					ast.Walk(walker(getReturns(nextStates)), rs)
+				}
 			} else if fn, ok := rr.(*ast.FuncType); ok {
-				fmt.Printf("  func type: %v", fn)
+				*nextStates = append(*nextStates, getFuncNameFromNode(fn))
 			} else if sel, ok := rr.(*ast.SelectorExpr); ok {
-				*nextStates = append(*nextStates, sel.Sel.String())
+				*nextStates = append(*nextStates, getFuncNameFromExpr(sel))
 			}
 		}
 		return true
 	}
 }
 
-func getFuncName(ex ast.Expr) string {
-	var ident *ast.Ident
+func getFuncNameFromNode(n ast.Node) string {
+	var name string
+	if fn, ok := n.(*ast.FuncDecl); ok {
+		if fn.Recv != nil {
+			recv := fn.Recv.List[0]
+			if t, ok := recv.Type.(*ast.StarExpr); ok {
+				if id, ok := t.X.(*ast.Ident); ok {
+					name = fmt.Sprintf("*%s", id.String())
+				}
+			}
+			if id, ok := recv.Type.(*ast.Ident); ok {
+				name = fmt.Sprintf("%s", id.String())
+			}
+			name = name + "." + fn.Name.String()
+		} else {
+			name = fn.Name.String()
+		}
+	}
+	return name
+}
+
+func getFuncNameFromExpr(ex ast.Expr) string {
+	if fun, ok := ex.(*ast.SelectorExpr); ok {
+		name := fun.Sel.String()
+		if fun.X != nil {
+			if ident, ok := fun.X.(*ast.Ident); ok {
+				if ident.Obj != nil && ident.Obj.Decl != nil {
+					if f, ok := ident.Obj.Decl.(*ast.Field); ok {
+						name = getFuncNameFromExpr(f.Type) + "." + name
+					}
+				} else {
+					name = ident.Name + "." + name
+				}
+			}
+		}
+		return name
+	}
+	if st, ok := ex.(*ast.StarExpr); ok {
+		if typ, ok := st.X.(*ast.Ident); ok {
+			return "*" + typ.String()
+		}
+	}
 	if typ, ok := ex.(*ast.SelectorExpr); ok {
-		ident = typ.Sel
+		return typ.Sel.String()
 	}
 	if typ, ok := ex.(*ast.Ident); ok {
-		ident = typ
+		return typ.String()
 	}
-	if ident == nil {
-		return ""
-	}
-	return ident.String()
+	return ""
 }
 
 func returnIsValid(r ast.Node) bool {
@@ -230,7 +253,7 @@ func returnIsValid(r ast.Node) bool {
 	if !ok {
 		return false
 	}
-	return getFuncName(par.Type) == ssmStateType
+	return getFuncNameFromExpr(par.Type) == ssmStateType
 }
 
 // walker adapts a function to satisfy the ast.Visitor interface.

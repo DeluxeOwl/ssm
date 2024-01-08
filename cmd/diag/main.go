@@ -15,15 +15,38 @@ import (
 	"strings"
 
 	"github.com/emicklei/dot"
+	"golang.org/x/mod/module"
 )
 
 const ssmStateType = "Fn"
 
 var (
-	build, _            = debug.ReadBuildInfo()
-	ssmModulePath       = build.Main.Path
-	ssmModuleImportPath = build.Main.Path + "@" + build.Main.Version
+	build, _         = debug.ReadBuildInfo()
+	ssmModulePath    = build.Main.Path
+	ssmModuleVersion = build.Main.Version
 )
+
+func getModulePath(name, version string) (string, error) {
+	// first we need GOMODCACHE
+	cache, ok := os.LookupEnv("GOMODCACHE")
+	if !ok {
+		cache = filepath.Join(os.Getenv("GOPATH"), "pkg", "mod")
+	}
+
+	// then we need to escape path
+	escapedPath, err := module.EscapePath(name)
+	if err != nil {
+		return "", err
+	}
+
+	// version also
+	escapedVersion, err := module.EscapeVersion(version)
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(cache, escapedPath+"@"+escapedVersion), nil
+}
 
 func loadPathsFromArgs() []string {
 	dirs := make([]string, 0)
@@ -41,6 +64,9 @@ func loadPathsFromArgs() []string {
 
 func filesFromArgs() ([]string, error) {
 	dirs := loadPathsFromArgs()
+	if ssmPath, err := getModulePath(ssmModulePath, ssmModuleVersion); err == nil {
+		dirs = append(dirs, ssmPath)
+	}
 	files := make([]string, 0)
 	isGoFile := func(path string) bool {
 		fi, _ := os.Stat(path)
@@ -231,8 +257,8 @@ func getFuncNameFromExpr(ex ast.Expr) string {
 					if f, ok := ident.Obj.Decl.(*ast.Field); ok {
 						name = getFuncNameFromExpr(f.Type) + "." + name
 					}
-				} else {
-					name = ident.Name + "." + name
+					//} else {
+					//	name = ident.Name + "." + name
 				}
 			}
 		}

@@ -11,14 +11,18 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 
 	"github.com/emicklei/dot"
 )
 
-const (
-	ssmModulePath = "git.sr.ht/~mariusor/ssm"
-	ssmStateType  = "Fn"
+const ssmStateType = "Fn"
+
+var (
+	build, _            = debug.ReadBuildInfo()
+	ssmModulePath       = build.Main.Path
+	ssmModuleImportPath = build.Main.Path + "@" + build.Main.Version
 )
 
 func loadPathsFromArgs() []string {

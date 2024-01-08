@@ -39,6 +39,23 @@ func getModulePath(name, version string) (string, error) {
 		return "", err
 	}
 
+	if version == "(devel)" {
+		versions := make([]module.Version, 0)
+		filepath.WalkDir(cache, func(path string, d fs.DirEntry, err error) error {
+			if !d.IsDir() || !strings.Contains(path, escapedPath) {
+				return nil
+			}
+			if pieces := strings.Split(path, "@"); len(pieces) == 2 {
+				if strings.Count(pieces[1], "/") > 0 {
+					return nil
+				}
+				versions = append(versions, module.Version{Path: name, Version: pieces[1]})
+			}
+			return nil
+		})
+		module.Sort(versions)
+		version = versions[len(versions)-1].Version
+	}
 	// version also
 	escapedVersion, err := module.EscapeVersion(version)
 	if err != nil {
@@ -69,8 +86,8 @@ func filesFromArgs() ([]string, error) {
 	}
 	files := make([]string, 0)
 	isGoFile := func(path string) bool {
-		fi, _ := os.Stat(path)
-		return !fi.IsDir() && filepath.Ext(path) == ".go"
+		fi, err := os.Stat(path)
+		return err == nil && !fi.IsDir() && !strings.Contains(path, "_test") && filepath.Ext(path) == ".go"
 	}
 	errs := make([]error, 0)
 	for _, dir := range dirs {

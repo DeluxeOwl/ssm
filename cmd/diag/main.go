@@ -41,20 +41,26 @@ func getModulePath(name, version string) (string, error) {
 
 	if version == "(devel)" {
 		versions := make([]module.Version, 0)
-		filepath.WalkDir(cache, func(path string, d fs.DirEntry, err error) error {
+		potentials, _ := filepath.Glob(filepath.Join(cache, ssmModulePath+"*"))
+		for _, path := range potentials {
+			d, err := os.Stat(path)
+			if err != nil {
+				continue
+			}
 			if !d.IsDir() || !strings.Contains(path, escapedPath) {
-				return nil
+				continue
 			}
 			if pieces := strings.Split(path, "@"); len(pieces) == 2 {
 				if strings.Count(pieces[1], "/") > 0 {
-					return nil
+					continue
 				}
 				versions = append(versions, module.Version{Path: name, Version: pieces[1]})
 			}
-			return nil
-		})
-		module.Sort(versions)
-		version = versions[len(versions)-1].Version
+		}
+		if len(versions) > 0 {
+			module.Sort(versions)
+			version = versions[len(versions)-1].Version
+		}
 	}
 	// version also
 	escapedVersion, err := module.EscapeVersion(version)

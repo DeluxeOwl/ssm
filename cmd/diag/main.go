@@ -116,6 +116,8 @@ func filesFromArgs() ([]string, error) {
 }
 
 func main() {
+	var output string
+	flag.StringVar(&output, "o", "", "The file in which to save the dot file")
 	flag.Parse()
 
 	files, err := filesFromArgs()
@@ -127,10 +129,23 @@ func main() {
 	if err != nil {
 		log.Panicf("Error: %s", err)
 	}
-	g := dot.NewGraph(dot.Directed)
+
+	groups := make(map[string]*dot.Graph)
 	references := make(map[string]dot.Node)
+
+	g := dot.NewGraph(dot.Directed)
+
 	for _, state := range states {
-		references[state.Name] = g.Node(state.Name)
+		sg := g
+		if len(state.Group) > 0 {
+			if gg, ok := groups[state.Group]; !ok {
+				sg = g.Subgraph(state.Group, dot.ClusterOption{})
+				groups[state.Group] = sg
+			} else {
+				sg = gg
+			}
+		}
+		references[state.Name] = sg.Node(state.Name)
 	}
 	for _, state := range states {
 		n1, ok := references[state.Name]
@@ -145,7 +160,32 @@ func main() {
 			g.Edge(n1, n2)
 		}
 	}
-	fmt.Println(g.String())
+
+	out := os.Stdout
+	if output != "" {
+		out, _ = os.OpenFile(output, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	}
+	g.Write(out)
+}
+
+func validImport(imp *ast.ImportSpec) bool {
+	return strings.Trim(imp.Path.Value, `"`) == ssmModulePath
+}
+
+func fileBelongsToOurPackage(f *ast.File) bool {
+	return strings.EqualFold(f.Name.Name, filepath.Base(ssmModulePath))
+}
+
+func validFileForLoadingStates(f *ast.File) bool {
+	if fileBelongsToOurPackage(f) {
+		return true
+	}
+	for _, imp := range f.Imports {
+		if validImport(imp) {
+			return true
+		}
+	}
+	return false
 }
 
 func loadStatesFromFiles(files []string) ([]stateNode, error) {
@@ -159,34 +199,26 @@ func loadStatesFromFiles(files []string) ([]stateNode, error) {
 			continue
 		}
 
-		f, err := parser.ParseFile(fset, file, data, parser.ParseComments)
+		f, err := parser.ParseFile(fset, file, data, parser.SkipObjectResolution)
 		if err != nil {
 			errs = append(errs, err)
 			continue
 		}
-		importsSsm := false
-		for _, imp := range f.Imports {
-			if strings.Trim(imp.Path.Value, `"`) == ssmModulePath {
-				importsSsm = true
-			}
+		if validFileForLoadingStates(f) {
+			states = append(states, loadStatesFromFile(f)...)
 		}
-		if !importsSsm {
-			continue
-		}
-		states = append(states, loadStatesFromFile(f)...)
 	}
 	return states, errors.Join(errs...)
 }
 
 func loadStatesFromFile(f *ast.File) []stateNode {
 	states := make([]stateNode, 0)
+	group := f.Name.Name
 	ast.Walk(walker(func(n ast.Node) bool {
-		fn, ok := n.(*ast.FuncDecl)
-		if !ok {
-			return true
-		}
-		if state, ok := loadStateFromFuncDecl(fn); ok {
-			states = append(states, *state)
+		if fn, ok := n.(*ast.FuncDecl); ok {
+			if state, ok := loadStateFromFuncDecl(fn, group); ok {
+				states = append(states, *state)
+			}
 		}
 		return true
 	}), f)
@@ -195,11 +227,12 @@ func loadStatesFromFile(f *ast.File) []stateNode {
 
 type stateNode struct {
 	Name       string
+	Group      string
 	Alias      string
 	NextStates []string
 }
 
-func loadStateFromFuncDecl(n ast.Node) (*stateNode, bool) {
+func loadStateFromFuncDecl(n ast.Node, group string) (*stateNode, bool) {
 	fn, ok := n.(*ast.FuncDecl)
 	if !ok {
 		return nil, false
@@ -217,7 +250,8 @@ func loadStateFromFuncDecl(n ast.Node) (*stateNode, bool) {
 	name := getFuncNameFromNode(fn)
 
 	res := stateNode{
-		Name: name,
+		Group: group,
+		Name:  name,
 	}
 	res.NextStates = make([]string, 0)
 	ast.Walk(walker(getReturns(&res.NextStates)), n)

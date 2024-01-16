@@ -274,9 +274,17 @@ func loadStateFromFuncDecl(n ast.Node, group string) (*stateNode, bool) {
 		Name:  name,
 	}
 	res.NextStates = make([]string, 0)
-	ast.Walk(walker(getReturns(&res.NextStates)), n)
+	ast.Walk(walker(getReturns(&res.NextStates)), fn)
 
 	return &res, true
+}
+
+func appendFuncNameFromIdent(states *[]string, n ast.Node) {
+	id, ok := n.(*ast.Ident)
+	if !ok {
+		return
+	}
+	*states = append(*states, id.String())
 }
 
 func getReturns(nextStates *[]string) func(n ast.Node) bool {
@@ -288,6 +296,9 @@ func getReturns(nextStates *[]string) func(n ast.Node) bool {
 		for _, rr := range ret.Results {
 			if cfn, ok := rr.(*ast.CallExpr); ok {
 				*nextStates = append(*nextStates, getFuncNameFromExpr(cfn.Fun))
+				for _, arg := range cfn.Args {
+					appendFuncNameFromIdent(nextStates, arg)
+				}
 			} else if fn, ok := rr.(*ast.Ident); ok {
 				*nextStates = append(*nextStates, fn.String())
 			} else if fn, ok := rr.(*ast.FuncLit); ok {

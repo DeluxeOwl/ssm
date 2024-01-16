@@ -71,71 +71,70 @@ func getModulePath(name, version string) (string, error) {
 	return filepath.Join(cache, escapedPath+"@"+escapedVersion), nil
 }
 
-func loadPathsFromArgs() []string {
-	dirs := make([]string, 0)
-	for _, arg := range flag.Args() {
+func findAllTargets(args []string) []string {
+	targets := make([]string, 0)
+	for _, arg := range args {
 		if abs, err := filepath.Abs(filepath.Clean(arg)); err == nil {
 			arg = abs
 		}
-		if _, err := os.Stat(arg); err != nil {
-			continue
-		}
-		dirs = append(dirs, arg)
-	}
-	return dirs
-}
-
-func filesFromArgs() ([]string, error) {
-	dirs := loadPathsFromArgs()
-	if ssmPath, err := getModulePath(ssmModulePath, ssmModuleVersion); err == nil {
-		dirs = append(dirs, ssmPath)
-	}
-	files := make([]string, 0)
-	isGoFile := func(path string) bool {
-		fi, err := os.Stat(path)
-		return err == nil && !fi.IsDir() && !strings.Contains(path, "_test") && filepath.Ext(path) == ".go"
-	}
-	errs := make([]error, 0)
-	for _, dir := range dirs {
-		if isGoFile(dir) {
-			files = append(files, dir)
-			continue
-		}
-		err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-			if !isGoFile(path) {
-				return nil
-			}
-			files = append(files, path)
-			return nil
-		})
+		fi, err := os.Stat(arg)
 		if err != nil {
-			errs = append(errs, err)
+			continue
+		}
+		if fi.IsDir() {
+			_ = filepath.WalkDir(arg, func(path string, d fs.DirEntry, err error) error {
+				if !d.IsDir() {
+					return nil
+				}
+				if strings.Contains(path, ".git") {
+					return filepath.SkipDir
+				}
+				targets = append(targets, path)
+				return nil
+			})
+		} else {
+			targets = append(targets, arg)
 		}
 	}
-	return files, errors.Join(errs...)
+	if ssmPath, err := getModulePath(ssmModulePath, ssmModuleVersion); err == nil {
+		targets = append(targets, ssmPath)
+	}
+	return targets
 }
 
 const mermaidExt = ".mmd"
 
+func shakeStates(states []stateNode) []stateNode {
+	finalStates := make([]stateNode, 0, len(states))
+	for _, s := range states {
+	top:
+		for _, ss := range states {
+			for _, ns := range ss.NextStates {
+				if ns == s.Name || s.Group != filepath.Base(ssmModulePath) {
+					finalStates = append(finalStates, s)
+					break top
+				}
+			}
+		}
+	}
+	return finalStates
+}
+
 func main() {
 	var output string
-	flag.StringVar(&output, "o", "", "The file in which to save the dot file. The type is inferred from the extension: .dot for Graphviz and .mmd for Mermaid")
+	flag.StringVar(&output, "o", "", "The file in which to save the dot file.\nThe type is inferred from the extension (.dot for Graphviz and .mmd for Mermaid)")
 	flag.Parse()
 
-	files, err := filesFromArgs()
+	targets := findAllTargets(flag.Args())
+	states, err := loadStates(targets)
 	if err != nil {
 		log.Panicf("Error: %s", err)
 	}
-
-	states, err := loadStatesFromFiles(files)
-	if err != nil {
-		log.Panicf("Error: %s", err)
-	}
+	states = shakeStates(states)
 
 	references := make(map[string]dot.Node)
 
 	g := dot.NewGraph(dot.Directed)
-
 	for _, state := range states {
 		sg := g
 		if len(state.Group) > 0 {
@@ -143,17 +142,14 @@ func main() {
 		}
 		references[state.Name] = sg.Node(state.Name)
 	}
+
 	for _, state := range states {
-		n1, ok := references[state.Name]
-		if !ok {
-			continue
-		}
-		for _, next := range state.NextStates {
-			n2, ok := references[next]
-			if !ok {
-				continue
+		if n1, ok := references[state.Name]; ok {
+			for _, next := range state.NextStates {
+				if n2, ok := references[next]; ok {
+					g.Edge(n1, n2)
+				}
 			}
-			g.Edge(n1, n2)
 		}
 	}
 	if output == "" {
@@ -161,7 +157,7 @@ func main() {
 	}
 	var data string
 	if filepath.Ext(output) == mermaidExt {
-		data = dot.MermaidFlowchart(g, dot.MermaidTopToBottom)
+		data = dot.MermaidGraph(g, dot.MermaidTopDown)
 	} else {
 		data = g.String()
 	}
@@ -172,48 +168,72 @@ func validImport(imp *ast.ImportSpec) bool {
 	return strings.Trim(imp.Path.Value, `"`) == ssmModulePath
 }
 
-func fileBelongsToOurPackage(f *ast.File) bool {
-	return strings.EqualFold(f.Name.Name, filepath.Base(ssmModulePath))
+func packageIsUs(p *ast.Package) bool {
+	return strings.EqualFold(p.Name, filepath.Base(ssmModulePath))
 }
 
-func validFileForLoadingStates(f *ast.File) bool {
-	if fileBelongsToOurPackage(f) {
+func packageIsValid(p *ast.Package) bool {
+	if packageIsUs(p) {
 		return true
 	}
-	for _, imp := range f.Imports {
-		if validImport(imp) {
-			return true
+	for _, f := range p.Files {
+		for _, imp := range f.Imports {
+			if validImport(imp) {
+				return true
+			}
 		}
 	}
 	return false
 }
 
-func loadStatesFromFiles(files []string) ([]stateNode, error) {
+func validGoFile(info fs.FileInfo) bool {
+	n := info.Name()
+	return !strings.Contains(n, "_test") && filepath.Ext(n) == ".go"
+}
+
+func loadStates(targets []string) ([]stateNode, error) {
 	states := make([]stateNode, 0)
-	fset := token.NewFileSet()
 	errs := make([]error, 0)
-	for _, file := range files {
-		data, err := os.ReadFile(file)
+	packages := make(map[string]*ast.Package)
+
+	for _, target := range targets {
+		fi, err := os.Stat(target)
 		if err != nil {
-			errs = append(errs, err)
 			continue
 		}
 
-		f, err := parser.ParseFile(fset, file, data, parser.SkipObjectResolution)
-		if err != nil {
-			errs = append(errs, err)
-			continue
+		if fi.IsDir() {
+			fset := token.NewFileSet()
+			pp, err := parser.ParseDir(fset, target, validGoFile, parser.ParseComments)
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			for pn, p := range pp {
+				packages[pn] = p
+			}
+		} else {
+			fset := token.NewFileSet()
+			f, err := parser.ParseFile(fset, target, nil, parser.ParseComments)
+			parent := filepath.Base(filepath.Dir(target))
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			packages[parent] = &ast.Package{Name: parent, Files: map[string]*ast.File{target: f}}
 		}
-		if validFileForLoadingStates(f) {
-			states = append(states, loadStatesFromFile(f)...)
+	}
+
+	for _, pack := range packages {
+		if packageIsValid(pack) {
+			states = append(states, loadStatesFromPackage(pack, pack.Name)...)
 		}
 	}
 	return states, errors.Join(errs...)
 }
 
-func loadStatesFromFile(f *ast.File) []stateNode {
+func loadStatesFromPackage(p *ast.Package, group string) []stateNode {
 	states := make([]stateNode, 0)
-	group := f.Name.Name
 	ast.Walk(walker(func(n ast.Node) bool {
 		if fn, ok := n.(*ast.FuncDecl); ok {
 			if state, ok := loadStateFromFuncDecl(fn, group); ok {
@@ -221,7 +241,7 @@ func loadStatesFromFile(f *ast.File) []stateNode {
 			}
 		}
 		return true
-	}), f)
+	}), p)
 	return states
 }
 
@@ -291,11 +311,11 @@ func getFuncNameFromNode(n ast.Node) string {
 			recv := fn.Recv.List[0]
 			if t, ok := recv.Type.(*ast.StarExpr); ok {
 				if id, ok := t.X.(*ast.Ident); ok {
-					name = fmt.Sprintf("*%s", id.String())
+					name = id.String()
 				}
 			}
 			if id, ok := recv.Type.(*ast.Ident); ok {
-				name = fmt.Sprintf("%s", id.String())
+				name = id.String()
 			}
 			name = name + "." + fn.Name.String()
 		} else {

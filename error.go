@@ -24,7 +24,7 @@ func StartState(ctx context.Context) Fn {
 		return End
 	}
 	if state, ok := start.(func(context.Context) Fn); ok {
-		return Fn(state)
+		return state
 	}
 	return End
 }

@@ -115,9 +115,11 @@ func filesFromArgs() ([]string, error) {
 	return files, errors.Join(errs...)
 }
 
+const mermaidExt = ".mmd"
+
 func main() {
 	var output string
-	flag.StringVar(&output, "o", "", "The file in which to save the dot file")
+	flag.StringVar(&output, "o", "", "The file in which to save the dot file. The type is inferred from the extension: .dot for Graphviz and .mmd for Mermaid")
 	flag.Parse()
 
 	files, err := filesFromArgs()
@@ -130,7 +132,6 @@ func main() {
 		log.Panicf("Error: %s", err)
 	}
 
-	groups := make(map[string]*dot.Graph)
 	references := make(map[string]dot.Node)
 
 	g := dot.NewGraph(dot.Directed)
@@ -138,12 +139,7 @@ func main() {
 	for _, state := range states {
 		sg := g
 		if len(state.Group) > 0 {
-			if gg, ok := groups[state.Group]; !ok {
-				sg = g.Subgraph(state.Group, dot.ClusterOption{})
-				groups[state.Group] = sg
-			} else {
-				sg = gg
-			}
+			sg = g.Subgraph(state.Group, dot.ClusterOption{})
 		}
 		references[state.Name] = sg.Node(state.Name)
 	}
@@ -160,12 +156,16 @@ func main() {
 			g.Edge(n1, n2)
 		}
 	}
-
-	out := os.Stdout
-	if output != "" {
-		out, _ = os.OpenFile(output, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	if output == "" {
+		fmt.Print(g.String())
 	}
-	g.Write(out)
+	var data string
+	if filepath.Ext(output) == mermaidExt {
+		data = dot.MermaidFlowchart(g, dot.MermaidTopToBottom)
+	} else {
+		data = g.String()
+	}
+	os.WriteFile(output, []byte(data), 0666)
 }
 
 func validImport(imp *ast.ImportSpec) bool {

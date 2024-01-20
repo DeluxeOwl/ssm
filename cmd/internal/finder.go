@@ -8,8 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/emicklei/dot"
 )
 
 var (
@@ -19,8 +17,8 @@ var (
 	SSMModuleVersion string
 )
 
-func LoadStates(targets []string) ([]stateNode, error) {
-	states := make([]stateNode, 0)
+func LoadStates(targets []string) ([]Connectable, error) {
+	states := make([]Connectable, 0)
 	errs := make([]error, 0)
 	packages := make(map[string]*ast.Package)
 
@@ -83,15 +81,21 @@ func validImport(imp *ast.ImportSpec) bool {
 	return strings.Trim(imp.Path.Value, `"`) == SSMModulePath
 }
 
-func shakeStates(states []stateNode) []stateNode {
-	finalStates := make([]stateNode, 0, len(states))
-	for _, s := range states {
+func shakeStates(states []Connectable) []Connectable {
+	finalStates := make([]Connectable, 0, len(states))
+	for _, st := range states {
+		s, ok := st.(StateNode)
+		if !ok {
+			continue
+		}
 	top:
-		for _, ss := range states {
-			for _, ns := range ss.NextStates {
-				if ns == s.Name || s.Group != SSMName {
-					finalStates = append(finalStates, s)
-					break top
+		for _, sss := range states {
+			if ss, ok := sss.(StateNode); ok {
+				for _, ns := range ss.NextStates {
+					if ns == s.Name || s.Group != SSMName {
+						finalStates = append(finalStates, s)
+						break top
+					}
 				}
 			}
 		}
@@ -99,8 +103,8 @@ func shakeStates(states []stateNode) []stateNode {
 	return finalStates
 }
 
-func loadStatesFromPackage(p *ast.Package, group string) []stateNode {
-	states := make([]stateNode, 0)
+func loadStatesFromPackage(p *ast.Package, group string) []Connectable {
+	states := make([]Connectable, 0)
 	ast.Walk(walker(func(n ast.Node) bool {
 		if fn, ok := n.(*ast.FuncDecl); ok {
 			if state, ok := loadStateFromFuncDecl(fn, group); ok {
@@ -112,16 +116,7 @@ func loadStatesFromPackage(p *ast.Package, group string) []stateNode {
 	return states
 }
 
-type stateNode struct {
-	*dot.Node
-
-	Name       string
-	Group      string
-	Alias      string
-	NextStates []string
-}
-
-func loadStateFromFuncDecl(n ast.Node, group string) (*stateNode, bool) {
+func loadStateFromFuncDecl(n ast.Node, group string) (*StateNode, bool) {
 	fn, ok := n.(*ast.FuncDecl)
 	if !ok {
 		return nil, false
@@ -136,121 +131,6 @@ func loadStateFromFuncDecl(n ast.Node, group string) (*stateNode, bool) {
 		return nil, false
 	}
 
-	name := getFuncNameFromNode(fn)
-
-	res := stateNode{
-		Group: group,
-		Name:  name,
-	}
-	res.NextStates = make([]string, 0)
-	ast.Walk(walker(getReturns(&res.NextStates)), fn)
-
-	return &res, true
-}
-
-func appendFuncNameFromIdent(states *[]string, n ast.Node) {
-	id, ok := n.(*ast.Ident)
-	if !ok {
-		return
-	}
-	*states = append(*states, id.String())
-}
-
-func getReturns(nextStates *[]string) func(n ast.Node) bool {
-	return func(n ast.Node) bool {
-		ret, ok := n.(*ast.ReturnStmt)
-		if !ok {
-			return true
-		}
-		for _, rr := range ret.Results {
-			if cfn, ok := rr.(*ast.CallExpr); ok {
-				*nextStates = append(*nextStates, getFuncNameFromExpr(cfn.Fun))
-				for _, arg := range cfn.Args {
-					appendFuncNameFromIdent(nextStates, arg)
-				}
-			} else if fn, ok := rr.(*ast.Ident); ok {
-				*nextStates = append(*nextStates, fn.String())
-			} else if fn, ok := rr.(*ast.FuncLit); ok {
-				for _, rs := range fn.Body.List {
-					ast.Walk(walker(getReturns(nextStates)), rs)
-				}
-			} else if fn, ok := rr.(*ast.FuncType); ok {
-				*nextStates = append(*nextStates, getFuncNameFromNode(fn))
-			} else if sel, ok := rr.(*ast.SelectorExpr); ok {
-				*nextStates = append(*nextStates, getFuncNameFromExpr(sel))
-			}
-		}
-		return true
-	}
-}
-
-func getFuncNameFromNode(n ast.Node) string {
-	var name string
-	if fn, ok := n.(*ast.FuncDecl); ok {
-		if fn.Recv != nil {
-			recv := fn.Recv.List[0]
-			if t, ok := recv.Type.(*ast.StarExpr); ok {
-				if id, ok := t.X.(*ast.Ident); ok {
-					name = id.String()
-				}
-			}
-			if id, ok := recv.Type.(*ast.Ident); ok {
-				name = id.String()
-			}
-			name = name + "." + fn.Name.String()
-		} else {
-			name = fn.Name.String()
-		}
-	}
-	return name
-}
-
-func getFuncNameFromExpr(ex ast.Expr) string {
-	switch ee := ex.(type) {
-	case *ast.SelectorExpr:
-		name := ee.Sel.String()
-		if ee.X != nil {
-			if ident, ok := ee.X.(*ast.Ident); ok {
-				if ident.Obj != nil {
-					if ident.Obj.Decl != nil {
-						if f, ok := ident.Obj.Decl.(*ast.Field); ok {
-							name = getFuncNameFromExpr(f.Type) + "." + name
-						}
-					}
-				} else {
-					name = ident.Name + "." + name
-				}
-			}
-		}
-		return name
-	case *ast.StarExpr:
-		if typ, ok := ee.X.(*ast.Ident); ok {
-			return "*" + typ.String()
-		}
-	case *ast.Ident:
-		return ee.String()
-	}
-	return ""
-}
-
-func returnIsValid(r ast.Node, group string) bool {
-	par, ok := r.(*ast.Field)
-	if !ok {
-		return false
-	}
-	if group == SSMName {
-		return SSMStateType == SSMName+"."+getFuncNameFromExpr(par.Type)
-	}
-	return SSMStateType == getFuncNameFromExpr(par.Type)
-}
-
-// walker adapts a function to satisfy the ast.Visitor interface.
-// The function return whether the walk should proceed into the node's children.
-type walker func(ast.Node) bool
-
-func (w walker) Visit(node ast.Node) ast.Visitor {
-	if w(node) {
-		return w
-	}
-	return nil
+	res := New(fn, group)
+	return res, true
 }

@@ -27,11 +27,6 @@ var (
 	ssmModuleVersion = build.Main.Version
 )
 
-// Connectable is a dot.Node or a *dotx.Composite
-type Connectable interface {
-	Attr(label string, value interface{}) dot.Node
-}
-
 const mermaidExt = ".mmd"
 
 func main() {
@@ -53,7 +48,11 @@ func main() {
 	references := make(map[string]dot.Node)
 
 	g := dot.NewGraph(dot.Directed)
-	for _, state := range states {
+	for _, st := range states {
+		state, ok := st.(internal.StateNode)
+		if !ok {
+			continue
+		}
 		sg := g
 		if len(state.Group) > 0 {
 			sg = g.Subgraph(state.Group, dot.ClusterOption{})
@@ -61,7 +60,11 @@ func main() {
 		references[state.Name] = sg.Node(state.Name)
 	}
 
-	for _, state := range states {
+	for _, st := range states {
+		state, ok := st.(internal.StateNode)
+		if !ok {
+			continue
+		}
 		if n1, ok := references[state.Name]; ok {
 			for _, next := range state.NextStates {
 				if n2, ok := references[next]; ok {

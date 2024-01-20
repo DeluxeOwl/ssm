@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"git.sr.ht/~mariusor/ssm/cmd/internal"
 
@@ -49,6 +50,11 @@ func main() {
 		}
 		if n1, ok := references[state.Name]; ok {
 			for _, next := range state.NextStates {
+				if strings.Index(next, ".") > 0 {
+					if _, a, ok := strings.Cut(next, "."); ok {
+						next = a
+					}
+				}
 				if n2, ok := references[next]; ok {
 					g.Edge(n1, n2)
 				}

@@ -2,6 +2,8 @@ package internal
 
 import (
 	"go/ast"
+	"strings"
+	"unicode"
 
 	"github.com/emicklei/dot"
 )
@@ -11,8 +13,19 @@ type Connectable interface {
 	Attr(label string, value interface{}) dot.Node
 }
 
+func functionIsNotExported(name string) bool {
+	if name == "" {
+		return false
+	}
+	return unicode.IsLower(rune(name[0]))
+}
+
 func New(fn ast.Node, group string) *StateNode {
 	name := getFuncNameFromNode(fn)
+
+	if strings.EqualFold(group, ssmName) && functionIsNotExported(name) {
+		return nil
+	}
 
 	res := StateNode{
 		Group: group,
@@ -57,14 +70,18 @@ func getFuncNameFromExpr(ex ast.Expr) string {
 	case *ast.SelectorExpr:
 		name := ee.Sel.String()
 		if ee.X != nil {
-			if ident, ok := ee.X.(*ast.Ident); ok {
+			switch tt := ee.X.(type) {
+			case *ast.CallExpr:
+				name = getFuncNameFromExpr(tt.Fun) + "." + name
+			case *ast.Ident:
+				ident := tt
 				if ident.Obj != nil {
 					if ident.Obj.Decl != nil {
 						if f, ok := ident.Obj.Decl.(*ast.Field); ok {
 							name = getFuncNameFromExpr(f.Type) + "." + name
 						}
 					}
-				} else {
+				} else if ident.Name != ssmName {
 					name = ident.Name + "." + name
 				}
 			}
@@ -72,7 +89,7 @@ func getFuncNameFromExpr(ex ast.Expr) string {
 		return name
 	case *ast.StarExpr:
 		if typ, ok := ee.X.(*ast.Ident); ok {
-			return "*" + typ.String()
+			return typ.String()
 		}
 	case *ast.Ident:
 		return ee.String()
@@ -114,10 +131,8 @@ func returnIsValid(r ast.Node, group string) bool {
 	if !ok {
 		return false
 	}
-	if group == ssmName {
-		return ssmStateType == ssmName+"."+getFuncNameFromExpr(par.Type)
-	}
-	return ssmStateType == getFuncNameFromExpr(par.Type)
+	n := getFuncNameFromExpr(par.Type)
+	return ssmStateType == n || ssmStateType == ssmName+"."+n
 }
 
 // walker adapts a function to satisfy the ast.Visitor interface.

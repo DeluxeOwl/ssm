@@ -101,6 +101,9 @@ func shakeStates(states []Connectable) []Connectable {
 		for _, sss := range states {
 			if ss, ok := sss.(StateNode); ok {
 				for _, ns := range ss.NextStates {
+					if _, b, ok := strings.Cut(ns, "."); ok {
+						ns = b
+					}
 					if ns == s.Name || s.Group != ssmName {
 						finalStates = append(finalStates, s)
 						break top
@@ -116,7 +119,7 @@ func loadStatesFromPackage(p *ast.Package, group string) []Connectable {
 	states := make([]Connectable, 0)
 	ast.Walk(walker(func(n ast.Node) bool {
 		if fn, ok := n.(*ast.FuncDecl); ok {
-			if state, ok := loadStateFromFuncDecl(fn, group); ok {
+			if state := loadStateFromFuncDecl(fn, group); state != nil {
 				states = append(states, *state)
 			}
 		}
@@ -125,21 +128,20 @@ func loadStatesFromPackage(p *ast.Package, group string) []Connectable {
 	return states
 }
 
-func loadStateFromFuncDecl(n ast.Node, group string) (*StateNode, bool) {
+func loadStateFromFuncDecl(n ast.Node, group string) *StateNode {
 	fn, ok := n.(*ast.FuncDecl)
 	if !ok {
-		return nil, false
+		return nil
 	}
 	if fn.Type.Results == nil || len(fn.Type.Results.List) != 1 {
-		return nil, false
+		return nil
 	}
 
 	result := fn.Type.Results.List[0]
 
 	if !returnIsValid(result, group) {
-		return nil, false
+		return nil
 	}
 
-	res := New(fn, group)
-	return res, true
+	return New(fn, group)
 }

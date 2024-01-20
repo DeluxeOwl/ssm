@@ -11,20 +11,32 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime/debug"
 	"strings"
+
+	"git.sr.ht/~mariusor/ssm"
 
 	"github.com/emicklei/dot"
 	"golang.org/x/mod/module"
 )
 
-const ssmStateType = "Fn"
-
 var (
-	build, _         = debug.ReadBuildInfo()
-	ssmModulePath    = build.Main.Path
+	_fnReflectType = reflect.ValueOf(ssm.Fn(nil)).Type()
+
+	ssmStateType  = _fnReflectType.String()
+	ssmModulePath = _fnReflectType.PkgPath()
+	ssmName       = filepath.Base(ssmModulePath)
+
+	build, _ = debug.ReadBuildInfo()
+	//ssmModulePath    = build.Main.Path
 	ssmModuleVersion = build.Main.Version
 )
+
+// Connectable is a dot.Node or a *dotx.Composite
+type Connectable interface {
+	Attr(label string, value interface{}) dot.Node
+}
 
 func getModulePath(name, version string) (string, error) {
 	// first we need GOMODCACHE
@@ -110,7 +122,7 @@ func shakeStates(states []stateNode) []stateNode {
 	top:
 		for _, ss := range states {
 			for _, ns := range ss.NextStates {
-				if ns == s.Name || s.Group != filepath.Base(ssmModulePath) {
+				if ns == s.Name || s.Group != ssmName {
 					finalStates = append(finalStates, s)
 					break top
 				}
@@ -169,7 +181,7 @@ func validImport(imp *ast.ImportSpec) bool {
 }
 
 func packageIsUs(p *ast.Package) bool {
-	return strings.EqualFold(p.Name, filepath.Base(ssmModulePath))
+	return strings.EqualFold(p.Name, ssmName)
 }
 
 func packageIsValid(p *ast.Package) bool {
@@ -246,6 +258,8 @@ func loadStatesFromPackage(p *ast.Package, group string) []stateNode {
 }
 
 type stateNode struct {
+	*dot.Node
+
 	Name       string
 	Group      string
 	Alias      string

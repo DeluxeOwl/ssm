@@ -48,8 +48,8 @@ func (f ErrorFn) Error() string {
 	return "error"
 }
 
-func ptrOf(t any) int64 {
-	return int64(reflect.ValueOf(t).Pointer())
+func ptrOf(t Fn) uintptr {
+	return reflect.ValueOf(t).Pointer()
 }
 
 var (

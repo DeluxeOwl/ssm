@@ -34,7 +34,7 @@ func FindAllTargets(args []string) []string {
 			targets = append(targets, arg)
 		}
 	}
-	if ssmPath, err := getModulePath(SSMModulePath, SSMModuleVersion); err == nil {
+	if ssmPath, err := getModulePath(ssmModulePath, ssmModuleVersion); err == nil {
 		targets = append(targets, ssmPath)
 	}
 	return targets
@@ -60,7 +60,7 @@ func getModulePath(name, version string) (string, error) {
 
 	if version == "(devel)" {
 		versions := make([]module.Version, 0)
-		potentials, _ := filepath.Glob(filepath.Join(cache, SSMModulePath+"*"))
+		potentials, _ := filepath.Glob(filepath.Join(cache, ssmModulePath+"*"))
 		for _, path := range potentials {
 			d, err := os.Stat(path)
 			if err != nil {

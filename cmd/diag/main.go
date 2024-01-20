@@ -6,26 +6,13 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"reflect"
-	"runtime/debug"
+
+	"git.sr.ht/~mariusor/ssm/cmd/internal"
 
 	"github.com/emicklei/dot"
-
-	"git.sr.ht/~mariusor/ssm"
-	"git.sr.ht/~mariusor/ssm/cmd/internal"
 )
 
-var (
-	_fnReflectType = reflect.ValueOf(ssm.Fn(nil)).Type()
-
-	ssmStateType  = _fnReflectType.String()
-	ssmModulePath = _fnReflectType.PkgPath()
-	ssmName       = filepath.Base(ssmModulePath)
-
-	build, _ = debug.ReadBuildInfo()
-	//ssmModulePath    = build.Main.Path
-	ssmModuleVersion = build.Main.Version
-)
+var ()
 
 const mermaidExt = ".mmd"
 
@@ -33,11 +20,6 @@ func main() {
 	var output string
 	flag.StringVar(&output, "o", "", "The file in which to save the dot file.\nThe type is inferred from the extension (.dot for Graphviz and .mmd for Mermaid)")
 	flag.Parse()
-
-	internal.SSMModuleVersion = ssmModuleVersion
-	internal.SSMModulePath = ssmModulePath
-	internal.SSMName = ssmName
-	internal.SSMStateType = ssmStateType
 
 	targets := internal.FindAllTargets(flag.Args())
 	states, err := internal.LoadStates(targets)

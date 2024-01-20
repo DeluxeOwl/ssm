@@ -7,14 +7,23 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"reflect"
+	"runtime/debug"
 	"strings"
+
+	"git.sr.ht/~mariusor/ssm"
 )
 
 var (
-	SSMStateType     string
-	SSMModulePath    string
-	SSMName          string
-	SSMModuleVersion string
+	_fnReflectType = reflect.ValueOf(ssm.Fn(nil)).Type()
+
+	ssmStateType  = _fnReflectType.String()
+	ssmModulePath = _fnReflectType.PkgPath()
+	ssmName       = filepath.Base(ssmModulePath)
+
+	build, _ = debug.ReadBuildInfo()
+	//ssmModulePath    = build.Main.Path
+	ssmModuleVersion = build.Main.Version
 )
 
 func LoadStates(targets []string) ([]Connectable, error) {
@@ -60,7 +69,7 @@ func LoadStates(targets []string) ([]Connectable, error) {
 }
 
 func packageIsUs(p *ast.Package) bool {
-	return strings.EqualFold(p.Name, SSMName)
+	return strings.EqualFold(p.Name, ssmName)
 }
 
 func packageIsValid(p *ast.Package) bool {
@@ -78,7 +87,7 @@ func packageIsValid(p *ast.Package) bool {
 }
 
 func validImport(imp *ast.ImportSpec) bool {
-	return strings.Trim(imp.Path.Value, `"`) == SSMModulePath
+	return strings.Trim(imp.Path.Value, `"`) == ssmModulePath
 }
 
 func shakeStates(states []Connectable) []Connectable {
@@ -92,7 +101,7 @@ func shakeStates(states []Connectable) []Connectable {
 		for _, sss := range states {
 			if ss, ok := sss.(StateNode); ok {
 				for _, ns := range ss.NextStates {
-					if ns == s.Name || s.Group != SSMName {
+					if ns == s.Name || s.Group != ssmName {
 						finalStates = append(finalStates, s)
 						break top
 					}

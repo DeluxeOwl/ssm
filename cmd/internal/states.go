@@ -114,10 +114,10 @@ func returnIsValid(r ast.Node, group string) bool {
 	if !ok {
 		return false
 	}
-	if group == SSMName {
-		return SSMStateType == SSMName+"."+getFuncNameFromExpr(par.Type)
+	if group == ssmName {
+		return ssmStateType == ssmName+"."+getFuncNameFromExpr(par.Type)
 	}
-	return SSMStateType == getFuncNameFromExpr(par.Type)
+	return ssmStateType == getFuncNameFromExpr(par.Type)
 }
 
 // walker adapts a function to satisfy the ast.Visitor interface.

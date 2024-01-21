@@ -44,21 +44,30 @@ func getReturns(nextStates *[]string) func(n ast.Node) bool {
 			return true
 		}
 		for _, rr := range ret.Results {
-			if cfn, ok := rr.(*ast.CallExpr); ok {
-				*nextStates = append(*nextStates, getFuncNameFromExpr(cfn.Fun))
-				for _, arg := range cfn.Args {
-					appendFuncNameFromIdent(nextStates, arg)
+			switch r := rr.(type) {
+			case *ast.CallExpr:
+				// TODO(marius): we need to do this recursively to load all states of form:
+				//   return State1(State2(State3(...)))
+				if st := getFuncNameFromExpr(r.Fun); st != "" {
+					*nextStates = append(*nextStates, st)
 				}
-			} else if fn, ok := rr.(*ast.Ident); ok {
-				*nextStates = append(*nextStates, fn.String())
-			} else if fn, ok := rr.(*ast.FuncLit); ok {
-				for _, rs := range fn.Body.List {
+				for _, arg := range r.Args {
+					appendFuncNameFromArg(nextStates, arg)
+				}
+			case *ast.Ident:
+				appendFuncNameFromArg(nextStates, rr)
+			case *ast.FuncLit:
+				for _, rs := range r.Body.List {
 					ast.Walk(walker(getReturns(nextStates)), rs)
 				}
-			} else if fn, ok := rr.(*ast.FuncType); ok {
-				*nextStates = append(*nextStates, getFuncNameFromNode(fn))
-			} else if sel, ok := rr.(*ast.SelectorExpr); ok {
-				*nextStates = append(*nextStates, getFuncNameFromExpr(sel))
+			case *ast.FuncType:
+				if st := getFuncNameFromNode(r); st != "" {
+					*nextStates = append(*nextStates, st)
+				}
+			case *ast.SelectorExpr:
+				if st := getFuncNameFromExpr(r); st != "" {
+					*nextStates = append(*nextStates, st)
+				}
 			}
 		}
 		return true
@@ -118,12 +127,17 @@ func getFuncNameFromNode(n ast.Node) string {
 	return name
 }
 
-func appendFuncNameFromIdent(states *[]string, n ast.Node) {
-	id, ok := n.(*ast.Ident)
-	if !ok {
-		return
+func appendFuncNameFromArg(states *[]string, n ast.Node) {
+	switch nn := n.(type) {
+	case *ast.Ident:
+		if st := nn.String(); st != "" {
+			*states = append(*states, st)
+		}
+	case *ast.CallExpr:
+		if st := getFuncNameFromExpr(nn.Fun); st != "" {
+			*states = append(*states)
+		}
 	}
-	*states = append(*states, id.String())
 }
 
 func (s stateSearch) returnIsValid(r ast.Node, imp map[string]string) bool {

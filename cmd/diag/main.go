@@ -13,8 +13,6 @@ import (
 	"github.com/emicklei/dot"
 )
 
-var ()
-
 const mermaidExt = ".mmd"
 
 func main() {

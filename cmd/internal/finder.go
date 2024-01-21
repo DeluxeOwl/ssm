@@ -26,6 +26,10 @@ var (
 	ssmModuleVersion = build.Main.Version
 )
 
+type stateSearch struct {
+	p *ast.Package
+}
+
 func LoadStates(targets []string) ([]Connectable, error) {
 	states := make([]Connectable, 0)
 	errs := make([]error, 0)
@@ -61,7 +65,8 @@ func LoadStates(targets []string) ([]Connectable, error) {
 
 	for _, pack := range packages {
 		if packageIsValid(pack) {
-			states = append(states, loadStatesFromPackage(pack, pack.Name)...)
+			s := stateSearch{p: pack}
+			states = append(states, s.loadStatesFromPackage()...)
 		}
 	}
 	states = shakeStates(states)
@@ -115,20 +120,29 @@ func shakeStates(states []Connectable) []Connectable {
 	return finalStates
 }
 
-func loadStatesFromPackage(p *ast.Package, group string) []Connectable {
+func (s stateSearch) loadStatesFromPackage() []Connectable {
 	states := make([]Connectable, 0)
+	imports := make(map[string]string)
 	ast.Walk(walker(func(n ast.Node) bool {
-		if fn, ok := n.(*ast.FuncDecl); ok {
-			if state := loadStateFromFuncDecl(fn, group); state != nil {
+		switch nn := n.(type) {
+		case *ast.File:
+			for _, i := range nn.Imports {
+				if i == nil || i.Name == nil {
+					continue
+				}
+				imports[i.Name.Name] = i.Path.Value
+			}
+		case *ast.FuncDecl:
+			if state := s.loadStateFromFuncDecl(nn, imports); state != nil {
 				states = append(states, *state)
 			}
 		}
 		return true
-	}), p)
+	}), s.p)
 	return states
 }
 
-func loadStateFromFuncDecl(n ast.Node, group string) *StateNode {
+func (s stateSearch) loadStateFromFuncDecl(n ast.Node, imp map[string]string) *StateNode {
 	fn, ok := n.(*ast.FuncDecl)
 	if !ok {
 		return nil
@@ -139,7 +153,8 @@ func loadStateFromFuncDecl(n ast.Node, group string) *StateNode {
 
 	result := fn.Type.Results.List[0]
 
-	if !returnIsValid(result, group) {
+	group := s.p.Name
+	if !s.returnIsValid(result, imp) {
 		return nil
 	}
 

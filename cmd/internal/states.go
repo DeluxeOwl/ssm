@@ -126,12 +126,22 @@ func appendFuncNameFromIdent(states *[]string, n ast.Node) {
 	*states = append(*states, id.String())
 }
 
-func returnIsValid(r ast.Node, group string) bool {
+func (s stateSearch) returnIsValid(r ast.Node, imp map[string]string) bool {
 	par, ok := r.(*ast.Field)
 	if !ok {
 		return false
 	}
+	alias := ssmName
+	for n, p := range imp {
+		if strings.Trim(p, "\"") == ssmModulePath {
+			alias = n
+			break
+		}
+	}
 	n := getFuncNameFromExpr(par.Type)
+	if strings.Contains(n, alias) {
+		n = strings.Replace(n, alias, ssmName, 1)
+	}
 	return ssmStateType == n || ssmStateType == ssmName+"."+n
 }
 

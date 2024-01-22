@@ -33,11 +33,12 @@ func New(fn ast.Node, group string) *StateNode {
 	}
 	res.NextStates = make([]string, 0)
 
-	ast.Walk(walker(getReturns(&res.NextStates)), fn)
+	ast.Walk(walker(getReturns(&res)), fn)
 	return &res
 }
 
-func getReturns(nextStates *[]string) func(n ast.Node) bool {
+func getReturns(res *StateNode) func(n ast.Node) bool {
+	nextStates := &res.NextStates
 	return func(n ast.Node) bool {
 		ret, ok := n.(*ast.ReturnStmt)
 		if !ok {
@@ -58,7 +59,7 @@ func getReturns(nextStates *[]string) func(n ast.Node) bool {
 				appendFuncNameFromArg(nextStates, rr)
 			case *ast.FuncLit:
 				for _, rs := range r.Body.List {
-					ast.Walk(walker(getReturns(nextStates)), rs)
+					ast.Walk(walker(getReturns(res)), rs)
 				}
 			case *ast.FuncType:
 				if st := getFuncNameFromNode(r); st != "" {

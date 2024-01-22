@@ -10,7 +10,13 @@ import (
 )
 
 func FindAllTargets(args []string) []string {
+	if len(args) == 0 {
+		return nil
+	}
 	targets := make([]string, 0)
+	if ssmPath, err := getModulePath(ssmModulePath, ssmModuleVersion); err == nil {
+		targets = append(targets, ssmPath)
+	}
 	for _, arg := range args {
 		if abs, err := filepath.Abs(filepath.Clean(arg)); err == nil {
 			arg = abs
@@ -33,9 +39,6 @@ func FindAllTargets(args []string) []string {
 		} else {
 			targets = append(targets, arg)
 		}
-	}
-	if ssmPath, err := getModulePath(ssmModulePath, ssmModuleVersion); err == nil {
-		targets = append(targets, ssmPath)
 	}
 	return targets
 }

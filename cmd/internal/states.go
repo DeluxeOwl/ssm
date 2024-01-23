@@ -37,6 +37,12 @@ func fromNode(fn ast.Node, group string) Connectable {
 }
 
 func findState(states []Connectable, group, n string) (Connectable, bool) {
+	if group == "" {
+		if b, a, ok := strings.Cut(n, "."); ok {
+			group = b
+			n = a
+		}
+	}
 	for _, ss := range states {
 		if ss.Match(group, n) {
 			return ss, true
@@ -48,6 +54,47 @@ func findState(states []Connectable, group, n string) (Connectable, bool) {
 		}
 	}
 	return nil, false
+}
+
+func (s stateSearch) getParams(res Connectable) func(n ast.Node) bool {
+	return func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		for _, arg := range call.Args {
+			switch r := arg.(type) {
+			case *ast.CallExpr:
+				// TODO(marius): we need to do this recursively to load all states of form:
+				//   return State1(State2(State3(...)))
+				nm := getFuncNameFromExpr(r.Fun)
+				st, ok := findState(s.states, "", nm)
+				if ok {
+					res.Append(st)
+				}
+				for _, arg := range r.Args {
+					s.appendFuncNameFromArg(st, arg)
+				}
+			case *ast.Ident:
+				s.appendFuncNameFromArg(res, arg)
+			case *ast.FuncLit:
+				for _, rs := range r.Body.List {
+					ast.Walk(walker(s.getReturns(res)), rs)
+				}
+			case *ast.FuncType:
+				nm := getFuncNameFromNode(r)
+				if st, ok := findState(s.states, "", nm); ok {
+					res.Append(st)
+				}
+			case *ast.SelectorExpr:
+				nm := getFuncNameFromExpr(r)
+				if st, ok := findState(s.states, "", nm); ok {
+					res.Append(st)
+				}
+			}
+		}
+		return true
+	}
 }
 
 func (s stateSearch) getReturns(res Connectable) func(n ast.Node) bool {
@@ -93,6 +140,8 @@ func (s stateSearch) getReturns(res Connectable) func(n ast.Node) bool {
 
 func getFuncNameFromExpr(ex ast.Expr) string {
 	switch ee := ex.(type) {
+	case *ast.CallExpr:
+		return getFuncNameFromExpr(ee.Fun)
 	case *ast.SelectorExpr:
 		name := ee.Sel.String()
 		if ee.X != nil {
@@ -107,7 +156,7 @@ func getFuncNameFromExpr(ex ast.Expr) string {
 							name = getFuncNameFromExpr(f.Type) + "." + name
 						}
 					}
-				} else if ident.Name != ssmName {
+				} else {
 					name = ident.Name + "." + name
 				}
 			}

@@ -24,6 +24,9 @@ var (
 	build, _ = debug.ReadBuildInfo()
 	//ssmModulePath    = build.Main.Path
 	ssmModuleVersion = build.Main.Version
+
+	ssmRun         = ssmName + ".Run"
+	ssmRunParallel = ssmName + ".RunParallel"
 )
 
 type stateSearch struct {
@@ -77,7 +80,12 @@ func LoadStates(targets ...string) ([]Connectable, error) {
 			s.loadNextStatesFromPackage(pack.Name)
 		}
 	}
-	//states = shakeStates(states)
+	for _, pack := range packages {
+		if packageIsValid(pack) && !packageIsUs(pack) {
+			s.p = pack
+			s.states = append(s.states, s.loadStartFromPackage()...)
+		}
+	}
 	return s.states, errors.Join(errs...)
 }
 
@@ -103,24 +111,15 @@ func importIsValid(imp *ast.ImportSpec) bool {
 	return strings.Trim(imp.Path.Value, `"`) == ssmModulePath
 }
 
-func shakeStates(states []Connectable) []Connectable {
-	finalStates := make([]Connectable, 0, len(states))
-	for _, st := range states {
-		s, ok := st.(*StateNode)
-		if !ok {
-			continue
+func (s stateSearch) loadStartFromPackage() []Connectable {
+	states := make([]Connectable, 0)
+	ast.Walk(walker(func(n ast.Node) bool {
+		if start := s.loadStartFromNode(n); start != nil {
+			states = append(states, start)
 		}
-	top:
-		for _, ss := range states {
-			for _, ns := range ss.Children() {
-				if s.Equals(ns) {
-					finalStates = append(finalStates, s)
-					break top
-				}
-			}
-		}
-	}
-	return finalStates
+		return true
+	}), s.p)
+	return states
 }
 
 func (s stateSearch) loadStatesFromPackage() []Connectable {
@@ -158,6 +157,22 @@ func (s stateSearch) loadNextStatesFromPackage(group string) {
 		}
 		return true
 	}), s.p)
+}
+
+func (s stateSearch) loadStartFromNode(n ast.Node) Connectable {
+	fn, ok := n.(*ast.ExprStmt)
+	if !ok {
+		return nil
+	}
+	name := getFuncNameFromExpr(fn.X)
+	if name != ssmRun && name != ssmRunParallel {
+		return nil
+	}
+
+	start := StateNode{Name: name, Group: ssmName}
+	// extract next states from its return values
+	ast.Walk(walker(s.getParams(&start)), fn)
+	return &start
 }
 
 func (s stateSearch) loadStateFromFuncDecl(n ast.Node, imp map[string]string) Connectable {

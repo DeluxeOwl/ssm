@@ -1,13 +1,15 @@
 package internal
 
+import "strings"
+
+// SSMStates is a static slice containing the states in the SSM package.
+// They get parsed dynamically at module.init() time
 var SSMStates = make([]Connectable, 0)
 
 type StateNode struct {
 	Name       string
 	Group      string
 	NextStates []Connectable
-
-	visited bool
 }
 
 func (s *StateNode) Equals(ss Connectable) bool {
@@ -26,9 +28,11 @@ func (s *StateNode) Append(n ...Connectable) {
 }
 
 func (s *StateNode) Match(group, name string) bool {
+	if group == "" {
+		if b, a, ok := strings.Cut(name, "."); ok {
+			group = b
+			name = a
+		}
+	}
 	return s.Name == name && (group == "" || s.Group == group)
-}
-
-func (s *StateNode) Visited() bool {
-	return s.visited
 }

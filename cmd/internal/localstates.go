@@ -1,52 +1,34 @@
 package internal
 
-import (
-	"time"
-
-	"git.sr.ht/~mariusor/ssm"
-
-	"github.com/emicklei/dot"
-)
-
-type End struct {
-	*dot.Node
-}
+var SSMStates = make([]Connectable, 0)
 
 type StateNode struct {
-	*dot.Node
-
 	Name       string
 	Group      string
-	Alias      string
-	NextStates []string
+	NextStates []Connectable
+
+	visited bool
 }
 
-type After struct {
-	*StateNode
-
-	d    time.Duration
-	next ssm.Fn
+func (s *StateNode) Equals(ss Connectable) bool {
+	if sn, ok := ss.(*StateNode); ok {
+		return s.Match(sn.Group, sn.Name)
+	}
+	return false
 }
 
-func (a After) Attr(label string, value interface{}) dot.Node {
-	return dot.Node{}
+func (s *StateNode) Children() []Connectable {
+	return s.NextStates
 }
 
-type At struct {
-	*StateNode
-	t    time.Time
-	next ssm.Fn
+func (s *StateNode) Append(n ...Connectable) {
+	s.NextStates = append(s.NextStates, n...)
 }
 
-func (a At) Attr(label string, value interface{}) dot.Node {
-	return dot.Node{}
+func (s *StateNode) Match(group, name string) bool {
+	return s.Name == name && (group == "" || s.Group == group)
 }
 
-type Batch struct {
-	*StateNode
-	states []ssm.Fn
-}
-
-func (b Batch) Attr(label string, value interface{}) dot.Node {
-	return dot.Node{}
+func (s *StateNode) Visited() bool {
+	return s.visited
 }

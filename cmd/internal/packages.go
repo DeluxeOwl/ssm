@@ -14,9 +14,6 @@ func FindAllTargets(args []string) []string {
 		return nil
 	}
 	targets := make([]string, 0)
-	if ssmPath, err := getModulePath(ssmModulePath, ssmModuleVersion); err == nil {
-		targets = append(targets, ssmPath)
-	}
 	for _, arg := range args {
 		if abs, err := filepath.Abs(filepath.Clean(arg)); err == nil {
 			arg = abs

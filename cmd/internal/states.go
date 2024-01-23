@@ -4,13 +4,13 @@ import (
 	"go/ast"
 	"strings"
 	"unicode"
-
-	"github.com/emicklei/dot"
 )
 
 // Connectable is a dot.Node or a *internal.StateNode
 type Connectable interface {
-	Attr(label string, value interface{}) dot.Node
+	Children() []Connectable
+	Match(group, name string) bool
+	Append(n ...Connectable)
 }
 
 func functionIsNotExported(name string) bool {
@@ -20,25 +20,37 @@ func functionIsNotExported(name string) bool {
 	return unicode.IsLower(rune(name[0]))
 }
 
-func New(fn ast.Node, group string) *StateNode {
+func fromNode(fn ast.Node, group string) Connectable {
 	name := getFuncNameFromNode(fn)
 
 	if strings.EqualFold(group, ssmName) && functionIsNotExported(name) {
 		return nil
 	}
 
-	res := StateNode{
-		Group: group,
-		Name:  name,
+	res := &StateNode{
+		Name:       name,
+		Group:      group,
+		NextStates: make([]Connectable, 0),
 	}
-	res.NextStates = make([]string, 0)
 
-	ast.Walk(walker(getReturns(&res)), fn)
-	return &res
+	return res
 }
 
-func getReturns(res *StateNode) func(n ast.Node) bool {
-	nextStates := &res.NextStates
+func findState(states []Connectable, group, n string) (Connectable, bool) {
+	for _, ss := range states {
+		if ss.Match(group, n) {
+			return ss, true
+		}
+	}
+	for _, s := range SSMStates {
+		if s.Match(group, n) {
+			return s, true
+		}
+	}
+	return nil, false
+}
+
+func (s stateSearch) getReturns(res Connectable) func(n ast.Node) bool {
 	return func(n ast.Node) bool {
 		ret, ok := n.(*ast.ReturnStmt)
 		if !ok {
@@ -49,25 +61,29 @@ func getReturns(res *StateNode) func(n ast.Node) bool {
 			case *ast.CallExpr:
 				// TODO(marius): we need to do this recursively to load all states of form:
 				//   return State1(State2(State3(...)))
-				if st := getFuncNameFromExpr(r.Fun); st != "" {
-					*nextStates = append(*nextStates, st)
+				nm := getFuncNameFromExpr(r.Fun)
+				st, ok := findState(s.states, "", nm)
+				if ok {
+					res.Append(st)
 				}
 				for _, arg := range r.Args {
-					appendFuncNameFromArg(nextStates, arg)
+					s.appendFuncNameFromArg(st, arg)
 				}
 			case *ast.Ident:
-				appendFuncNameFromArg(nextStates, rr)
+				s.appendFuncNameFromArg(res, rr)
 			case *ast.FuncLit:
 				for _, rs := range r.Body.List {
-					ast.Walk(walker(getReturns(res)), rs)
+					ast.Walk(walker(s.getReturns(res)), rs)
 				}
 			case *ast.FuncType:
-				if st := getFuncNameFromNode(r); st != "" {
-					*nextStates = append(*nextStates, st)
+				nm := getFuncNameFromNode(r)
+				if st, ok := findState(s.states, "", nm); ok {
+					res.Append(st)
 				}
 			case *ast.SelectorExpr:
-				if st := getFuncNameFromExpr(r); st != "" {
-					*nextStates = append(*nextStates, st)
+				nm := getFuncNameFromExpr(r)
+				if st, ok := findState(s.states, "", nm); ok {
+					res.Append(st)
 				}
 			}
 		}
@@ -128,16 +144,20 @@ func getFuncNameFromNode(n ast.Node) string {
 	return name
 }
 
-func appendFuncNameFromArg(states *[]string, n ast.Node) {
+func (s stateSearch) appendFuncNameFromArg(res Connectable, n ast.Node) {
+	name := ""
 	switch nn := n.(type) {
 	case *ast.Ident:
-		if st := nn.String(); st != "" {
-			*states = append(*states, st)
-		}
+		name = nn.String()
 	case *ast.CallExpr:
-		if st := getFuncNameFromExpr(nn.Fun); st != "" {
-			*states = append(*states)
-		}
+		name = getFuncNameFromExpr(nn.Fun)
+	}
+	st, ok := findState(s.states, "", name)
+	if ok {
+		res.Append(st)
+	}
+	if nn, ok := n.(*ast.CallExpr); ok {
+		ast.Walk(walker(s.getReturns(st)), nn)
 	}
 }
 

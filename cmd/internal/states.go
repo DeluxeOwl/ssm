@@ -21,7 +21,7 @@ func functionIsNotExported(name string) bool {
 }
 
 func fromNode(fn ast.Node, group string) Connectable {
-	name := getFuncNameFromNode(fn)
+	name := getStateNameFromNode(fn)
 
 	if strings.EqualFold(group, ssmName) && functionIsNotExported(name) {
 		return nil
@@ -82,7 +82,7 @@ func (s stateSearch) getParams(res Connectable) func(n ast.Node) bool {
 					ast.Walk(walker(s.getReturns(res)), rs)
 				}
 			case *ast.FuncType:
-				nm := getFuncNameFromNode(r)
+				nm := getStateNameFromNode(r)
 				if st, ok := findState(s.states, "", nm); ok {
 					res.Append(st)
 				}
@@ -123,7 +123,7 @@ func (s stateSearch) getReturns(res Connectable) func(n ast.Node) bool {
 					ast.Walk(walker(s.getReturns(res)), rs)
 				}
 			case *ast.FuncType:
-				nm := getFuncNameFromNode(r)
+				nm := getStateNameFromNode(r)
 				if st, ok := findState(s.states, "", nm); ok {
 					res.Append(st)
 				}
@@ -172,11 +172,12 @@ func getFuncNameFromExpr(ex ast.Expr) string {
 	return ""
 }
 
-func getFuncNameFromNode(n ast.Node) string {
+func getStateNameFromNode(n ast.Node) string {
 	var name string
-	if fn, ok := n.(*ast.FuncDecl); ok {
-		if fn.Recv != nil {
-			recv := fn.Recv.List[0]
+	switch nn := n.(type) {
+	case *ast.FuncDecl:
+		if nn.Recv != nil {
+			recv := nn.Recv.List[0]
 			if t, ok := recv.Type.(*ast.StarExpr); ok {
 				if id, ok := t.X.(*ast.Ident); ok {
 					name = id.String()
@@ -185,10 +186,12 @@ func getFuncNameFromNode(n ast.Node) string {
 			if id, ok := recv.Type.(*ast.Ident); ok {
 				name = id.String()
 			}
-			name = name + "." + fn.Name.String()
+			name = name + "." + nn.Name.String()
 		} else {
-			name = fn.Name.String()
+			name = nn.Name.String()
 		}
+	case *ast.Ident:
+		name = nn.String()
 	}
 	return name
 }
@@ -210,11 +213,23 @@ func (s stateSearch) appendFuncNameFromArg(res Connectable, n ast.Node) {
 	}
 }
 
+func (s stateSearch) declIsValid(r any, imp map[string]string) bool {
+	par, ok := r.(*ast.ValueSpec)
+	if !ok {
+		return false
+	}
+	return typeIsValid(par.Type, imp)
+}
+
 func (s stateSearch) returnIsValid(r ast.Node, imp map[string]string) bool {
 	par, ok := r.(*ast.Field)
 	if !ok {
 		return false
 	}
+	return typeIsValid(par.Type, imp)
+}
+
+func typeIsValid(typ ast.Expr, imp map[string]string) bool {
 	alias := ssmName
 	for n, p := range imp {
 		if strings.Trim(p, "\"") == ssmModulePath {
@@ -222,7 +237,7 @@ func (s stateSearch) returnIsValid(r ast.Node, imp map[string]string) bool {
 			break
 		}
 	}
-	n := getFuncNameFromExpr(par.Type)
+	n := getFuncNameFromExpr(typ)
 	if strings.Contains(n, alias) {
 		n = strings.Replace(n, alias, ssmName, 1)
 	}

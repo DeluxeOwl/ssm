@@ -127,6 +127,16 @@ func (s stateSearch) loadStatesFromPackage() []Connectable {
 	imports := make(map[string]string)
 	ast.Walk(walker(func(n ast.Node) bool {
 		switch nn := n.(type) {
+		case *ast.Ident:
+			if nn.Obj == nil || nn.Obj.Kind != ast.Var {
+				return true
+			}
+			if !s.declIsValid(nn.Obj.Decl, imports) {
+				return true
+			}
+			if state := s.loadStateFromIdent(nn, imports); state != nil {
+				states = append(states, state)
+			}
 		case *ast.File:
 			for _, i := range nn.Imports {
 				if i == nil || i.Name == nil {
@@ -149,7 +159,7 @@ func (s stateSearch) loadNextStatesFromPackage(group string) {
 		switch fn := n.(type) {
 		case *ast.FuncDecl:
 			// Find the state
-			res, ok := findState(s.states, group, getFuncNameFromNode(fn))
+			res, ok := findState(s.states, group, getStateNameFromNode(fn))
 			if ok {
 				// extract next states from its return values
 				ast.Walk(walker(s.getReturns(res)), fn)
@@ -173,6 +183,22 @@ func (s stateSearch) loadStartFromNode(n ast.Node) Connectable {
 	// extract next states from its return values
 	ast.Walk(walker(s.getParams(&start)), fn)
 	return &start
+}
+
+func (s stateSearch) loadStateFromIdent(n ast.Node, imp map[string]string) Connectable {
+	id, ok := n.(*ast.Ident)
+	if !ok {
+		return nil
+	}
+	decl, ok := id.Obj.Decl.(*ast.ValueSpec)
+	if !ok {
+		return nil
+	}
+	if !typeIsValid(decl.Type, imp) {
+		return nil
+	}
+	group := s.p.Name
+	return fromNode(id, group)
 }
 
 func (s stateSearch) loadStateFromFuncDecl(n ast.Node, imp map[string]string) Connectable {

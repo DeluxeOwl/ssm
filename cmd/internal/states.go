@@ -72,6 +72,7 @@ func (s stateSearch) getParams(res Connectable) func(n ast.Node) bool {
 				st, ok := findState(s.states, "", nm)
 				if ok {
 					res.Append(st)
+					appendStates(&s.states, res)
 				}
 				for _, arg := range r.Args {
 					s.appendFuncNameFromArg(st, arg)
@@ -113,6 +114,7 @@ func (s stateSearch) getReturns(res Connectable) func(n ast.Node) bool {
 				st, ok := findState(s.states, "", nm)
 				if ok {
 					res.Append(st)
+					appendStates(&s.states, st)
 				}
 				for _, arg := range r.Args {
 					s.appendFuncNameFromArg(st, arg)
@@ -127,11 +129,13 @@ func (s stateSearch) getReturns(res Connectable) func(n ast.Node) bool {
 				nm := getStateNameFromNode(r)
 				if st, ok := findState(s.states, "", nm); ok {
 					res.Append(st)
+					appendStates(&s.states, st)
 				}
 			case *ast.SelectorExpr:
 				nm := getFuncNameFromExpr(r)
 				if st, ok := findState(s.states, "", nm); ok {
 					res.Append(st)
+					appendStates(&s.states, st)
 				}
 			}
 		}
@@ -208,6 +212,7 @@ func (s stateSearch) appendFuncNameFromArg(res Connectable, n ast.Node) {
 	st, ok := findState(s.states, "", name)
 	if ok {
 		res.Append(st)
+		appendStates(&s.states, st)
 	}
 	if nn, ok := n.(*ast.CallExpr); ok {
 		ast.Walk(walker(s.getReturns(st)), nn)

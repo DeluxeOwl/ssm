@@ -71,7 +71,7 @@ func LoadStates(targets ...string) ([]Connectable, error) {
 	for _, pack := range packages {
 		if packageIsValid(pack) {
 			s.p = pack
-			s.states = append(s.states, s.loadStatesFromPackage()...)
+			appendStates(&s.states, s.loadStatesFromPackage()...)
 		}
 	}
 	for _, pack := range packages {
@@ -83,7 +83,7 @@ func LoadStates(targets ...string) ([]Connectable, error) {
 	for _, pack := range packages {
 		if packageIsValid(pack) && !packageIsUs(pack) {
 			s.p = pack
-			s.states = append(s.states, s.loadStartFromPackage()...)
+			appendStates(&s.states, s.loadStatesFromPackage()...)
 		}
 	}
 	return s.states, errors.Join(errs...)
@@ -115,7 +115,7 @@ func (s stateSearch) loadStartFromPackage() []Connectable {
 	states := make([]Connectable, 0)
 	ast.Walk(walker(func(n ast.Node) bool {
 		if start := s.loadStartFromNode(n); start != nil {
-			states = append(states, start)
+			appendStates(&states, start)
 		}
 		return true
 	}), s.p)
@@ -135,7 +135,7 @@ func (s stateSearch) loadStatesFromPackage() []Connectable {
 				return true
 			}
 			if state := s.loadStateFromIdent(nn, imports); state != nil {
-				states = append(states, state)
+				appendStates(&states, state)
 			}
 		case *ast.File:
 			for _, i := range nn.Imports {
@@ -146,7 +146,7 @@ func (s stateSearch) loadStatesFromPackage() []Connectable {
 			}
 		case *ast.FuncDecl:
 			if state := s.loadStateFromFuncDecl(nn, imports); state != nil {
-				states = append(states, state)
+				appendStates(&states, state)
 			}
 		}
 		return true
@@ -154,16 +154,18 @@ func (s stateSearch) loadStatesFromPackage() []Connectable {
 	return states
 }
 
-func appendStates(states *[]Connectable, st Connectable) {
-	if st == nil {
-		return
-	}
-	for _, check := range *states {
-		if check.Equals(st) {
-			return
+func appendStates(states *[]Connectable, toAppend ...Connectable) {
+	for _, st := range toAppend {
+		add := true
+		for _, check := range *states {
+			if check.Equals(st) {
+				add = false
+			}
+		}
+		if add {
+			*states = append(*states, st)
 		}
 	}
-	*states = append(*states, st)
 }
 
 func (s stateSearch) loadNextStatesFromPackage(group string) {
@@ -175,7 +177,6 @@ func (s stateSearch) loadNextStatesFromPackage(group string) {
 			if ok {
 				// extract next states from its return values
 				ast.Walk(walker(s.getReturns(res)), fn)
-				appendStates(&s.states, res)
 			}
 		}
 		return true

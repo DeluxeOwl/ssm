@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"git.sr.ht/~mariusor/ssm/cmd/internal"
@@ -19,17 +20,17 @@ func Dot(output string, states ...internal.Connectable) error {
 	}
 	_ = dd.addStates(states...)
 	g := dd.g
+	// NOTE(marius): remove tabs from empty lines
+	r := regexp.MustCompilePOSIX("^\t+\n")
+	data := r.ReplaceAll([]byte(g.String()), []byte("\n"))
 	if output == "" {
-		fmt.Print(g.String())
+		fmt.Printf("%s", data)
 		return nil
 	}
-	var data string
 	if filepath.Ext(output) == mermaidExt {
-		data = dot.MermaidGraph(g, dot.MermaidTopDown)
-	} else {
-		data = g.String()
+		data = []byte(dot.MermaidGraph(g, dot.MermaidTopDown))
 	}
-	return os.WriteFile(output, []byte(data), 0666)
+	return os.WriteFile(output, data, 0666)
 }
 
 const mermaidExt = ".mmd"

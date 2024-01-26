@@ -154,6 +154,18 @@ func (s stateSearch) loadStatesFromPackage() []Connectable {
 	return states
 }
 
+func appendStates(states *[]Connectable, st Connectable) {
+	if st == nil {
+		return
+	}
+	for _, check := range *states {
+		if check.Equals(st) {
+			return
+		}
+	}
+	*states = append(*states, st)
+}
+
 func (s stateSearch) loadNextStatesFromPackage(group string) {
 	ast.Walk(walker(func(n ast.Node) bool {
 		switch fn := n.(type) {
@@ -163,6 +175,7 @@ func (s stateSearch) loadNextStatesFromPackage(group string) {
 			if ok {
 				// extract next states from its return values
 				ast.Walk(walker(s.getReturns(res)), fn)
+				appendStates(&s.states, res)
 			}
 		}
 		return true

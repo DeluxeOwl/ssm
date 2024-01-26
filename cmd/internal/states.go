@@ -10,6 +10,7 @@ import (
 type Connectable interface {
 	Children() []Connectable
 	Match(group, name string) bool
+	Equals(n Connectable) bool
 	Append(n ...Connectable)
 }
 

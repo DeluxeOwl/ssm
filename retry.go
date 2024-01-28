@@ -31,6 +31,14 @@ func retry(retries int, fn Fn) Fn {
 			if !IsError(next) {
 				return next
 			}
+			select {
+			case <-ctx.Done():
+				if err := ctx.Err(); err != nil {
+					return ErrorEnd(err)
+				}
+				return End
+			default:
+			}
 			if retries-1 <= 0 {
 				return next
 			}

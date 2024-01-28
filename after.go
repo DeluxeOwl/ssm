@@ -31,6 +31,11 @@ func runAfter(d time.Duration, run Fn) Fn {
 		select {
 		case next := <-done:
 			return next
+		case <-ctx.Done():
+			if err := ctx.Err(); err != nil {
+				return ErrorEnd(err)
+			}
+			return End
 		}
 	}
 }

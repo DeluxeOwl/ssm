@@ -34,6 +34,14 @@ func Parallel(states ...Fn) Fn {
 		}
 		wg.Wait()
 
+		select {
+		case <-ctx.Done():
+			if err := ctx.Err(); err != nil {
+				return ErrorEnd(err)
+			}
+			return End
+		default:
+		}
 		return parallelStates(nextStates...)
 	}
 }

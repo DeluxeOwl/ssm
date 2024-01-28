@@ -38,11 +38,6 @@ func (n nb) run(states ...Fn) Fn {
 
 func (n nb) wait(ctx context.Context) Fn {
 	select {
-	case <-ctx.Done():
-		if err := ctx.Err(); err != nil {
-			return ErrorEnd(err)
-		}
-		return End
 	case next := <-n:
 		return next
 	default:

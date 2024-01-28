@@ -22,14 +22,6 @@ func Batch(states ...Fn) Fn {
 				nextStates = append(nextStates, ns)
 			}
 		}
-		select {
-		case <-ctx.Done():
-			if err := ctx.Err(); err != nil {
-				return ErrorEnd(err)
-			}
-			return End
-		default:
-		}
 		return batchStates(nextStates...)
 	}
 }

@@ -42,9 +42,18 @@ func loop(ctx context.Context, state Fn) {
 	ctx = context.WithValue(ctx, __start, state)
 
 	for {
-		if next := state(ctx); next != nil {
-			state = next
+		select {
+		case <-ctx.Done():
+			if err := ctx.Err(); err != nil {
+				state = ErrorEnd(err)
+			}
+			state = End
 			continue
+		default:
+			if next := state(ctx); next != nil {
+				state = next
+				continue
+			}
 		}
 		break
 	}

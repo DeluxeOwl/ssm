@@ -32,7 +32,10 @@ var (
 type stateSearch struct {
 	p *ast.Package
 
-	states []Connectable
+	loadInternal bool
+
+	imports map[string]string
+	states  []Connectable
 }
 
 func LoadStates(targets ...string) ([]Connectable, error) {
@@ -67,7 +70,7 @@ func LoadStates(targets ...string) ([]Connectable, error) {
 		}
 	}
 
-	s := stateSearch{states: make([]Connectable, 0)}
+	s := stateSearch{states: make([]Connectable, 0), imports: make(map[string]string), loadInternal: true}
 	for _, pack := range packages {
 		if packageIsValid(pack) {
 			s.p = pack
@@ -81,9 +84,21 @@ func LoadStates(targets ...string) ([]Connectable, error) {
 		}
 	}
 	for _, pack := range packages {
-		if packageIsValid(pack) && !packageIsUs(pack) {
+		if packageIsValid(pack) {
 			s.p = pack
 			appendStates(&s.states, s.loadStatesFromPackage()...)
+		}
+	}
+	for _, pack := range packages {
+		if packageIsValid(pack) {
+			s.p = pack
+			appendStates(&s.states, s.loadStartFromPackage()...)
+		}
+	}
+	for _, pack := range packages {
+		if packageIsValid(pack) {
+			s.p = pack
+			s.loadNextStatesFromPackage(pack.Name)
 		}
 	}
 	return s.states, errors.Join(errs...)
@@ -124,17 +139,16 @@ func (s stateSearch) loadStartFromPackage() []Connectable {
 
 func (s stateSearch) loadStatesFromPackage() []Connectable {
 	states := make([]Connectable, 0)
-	imports := make(map[string]string)
 	ast.Walk(walker(func(n ast.Node) bool {
 		switch nn := n.(type) {
 		case *ast.Ident:
 			if nn.Obj == nil || nn.Obj.Kind != ast.Var {
 				return true
 			}
-			if !s.declIsValid(nn.Obj.Decl, imports) {
+			if !s.declIsValid(nn.Obj.Decl, s.imports) {
 				return true
 			}
-			if state := s.loadStateFromIdent(nn, imports); state != nil {
+			if state := s.loadStateFromIdent(nn); state != nil {
 				appendStates(&states, state)
 			}
 		case *ast.File:
@@ -142,10 +156,10 @@ func (s stateSearch) loadStatesFromPackage() []Connectable {
 				if i == nil || i.Name == nil {
 					continue
 				}
-				imports[i.Name.Name] = i.Path.Value
+				s.imports[i.Name.Name] = i.Path.Value
 			}
 		case *ast.FuncDecl:
-			if state := s.loadStateFromFuncDecl(nn, imports); state != nil {
+			if state := s.loadStateFromFuncDecl(nn); state != nil {
 				appendStates(&states, state)
 			}
 		}
@@ -173,7 +187,8 @@ func (s stateSearch) loadNextStatesFromPackage(group string) {
 		switch fn := n.(type) {
 		case *ast.FuncDecl:
 			// Find the state
-			res, ok := findState(s.states, group, getStateNameFromNode(fn))
+			name := getStateNameFromNode(fn)
+			res, ok := findState(s.states, group, name)
 			if ok {
 				// extract next states from its return values
 				ast.Walk(walker(s.getReturns(res)), fn)
@@ -199,7 +214,7 @@ func (s stateSearch) loadStartFromNode(n ast.Node) Connectable {
 	return &start
 }
 
-func (s stateSearch) loadStateFromIdent(n ast.Node, imp map[string]string) Connectable {
+func (s stateSearch) loadStateFromIdent(n ast.Node) Connectable {
 	id, ok := n.(*ast.Ident)
 	if !ok {
 		return nil
@@ -208,28 +223,38 @@ func (s stateSearch) loadStateFromIdent(n ast.Node, imp map[string]string) Conne
 	if !ok {
 		return nil
 	}
-	if !typeIsValid(decl.Type, imp) {
+	if !typeIsValid(decl.Type, s.imports) {
 		return nil
 	}
 	group := s.p.Name
-	return fromNode(id, group)
+	return s.fromNode(id, group)
 }
 
-func (s stateSearch) loadStateFromFuncDecl(n ast.Node, imp map[string]string) Connectable {
+func (s stateSearch) fromFuncBody(fn *ast.BlockStmt) Connectable {
+	//for _, st := range fn.List {
+	//	//fmt.Printf("%v", st)
+	//}
+	return nil
+}
+
+func (s stateSearch) fromStateFuncDecl(fn *ast.FuncDecl) Connectable {
+	result := fn.Type.Results.List[0]
+
+	group := s.p.Name
+	if !s.returnIsValid(result, s.imports) {
+		return nil
+	}
+	return s.fromNode(fn, group)
+}
+
+func (s stateSearch) loadStateFromFuncDecl(n ast.Node) Connectable {
 	fn, ok := n.(*ast.FuncDecl)
 	if !ok {
 		return nil
 	}
-	if fn.Type.Results == nil || len(fn.Type.Results.List) != 1 {
-		return nil
+	maybeIsState := fn.Type.Results != nil && len(fn.Type.Results.List) == 1
+	if maybeIsState {
+		return s.fromStateFuncDecl(fn)
 	}
-
-	result := fn.Type.Results.List[0]
-
-	group := s.p.Name
-	if !s.returnIsValid(result, imp) {
-		return nil
-	}
-
-	return fromNode(fn, group)
+	return nil //s.fromFuncBody(fn.Body)
 }

@@ -8,14 +8,6 @@ type Fn func(context.Context) Fn
 
 type aggregatorFn func(...Fn) Fn
 
-var End Fn = nil
-
-var _endPtr = ptrOf(End)
-
-func IsEnd(f Fn) bool {
-	return ptrOf(f) == _endPtr
-}
-
 func aggStates(batch aggregatorFn, states ...Fn) Fn {
 	if len(states) == 0 {
 		return End

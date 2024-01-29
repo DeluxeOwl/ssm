@@ -21,10 +21,10 @@ func functionIsNotExported(name string) bool {
 	return unicode.IsLower(rune(name[0]))
 }
 
-func fromNode(fn ast.Node, group string) Connectable {
+func (s stateSearch) fromNode(fn ast.Node, group string) Connectable {
 	name := getStateNameFromNode(fn)
 
-	if strings.EqualFold(group, ssmName) && functionIsNotExported(name) {
+	if name == "" || (strings.EqualFold(group, ssmName) && !s.loadInternal && functionIsNotExported(name)) {
 		return nil
 	}
 

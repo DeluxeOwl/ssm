@@ -6,4 +6,4 @@ sources:
 tasks:
   - tests: |
       cd ssm
-      go test -cover -race -v .
+      go test -cover -race -v ./...

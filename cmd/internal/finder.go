@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"log"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -35,10 +36,9 @@ type stateSearch struct {
 	loadInternal bool
 
 	imports map[string]string
-	states  []Connectable
 }
 
-func LoadStates(targets ...string) ([]Connectable, error) {
+func parseTargetPackages(targets ...string) (map[string]*ast.Package, error) {
 	errs := make([]error, 0)
 	packages := make(map[string]*ast.Package)
 
@@ -69,39 +69,55 @@ func LoadStates(targets ...string) ([]Connectable, error) {
 			packages[parent] = &ast.Package{Name: parent, Files: map[string]*ast.File{target: f}}
 		}
 	}
+	return packages, errors.Join(errs...)
+}
 
-	s := stateSearch{states: make([]Connectable, 0), imports: make(map[string]string), loadInternal: true}
+// loadStateNames returns a flat list of states found in the received packages
+func (s stateSearch) loadStateNames(packages map[string]*ast.Package) []Connectable {
+	states := make([]Connectable, 0)
+	for _, pack := range packages {
+		if !packageIsValid(pack) {
+			logFn("no states in package %q, skipping", pack.Name)
+			continue
+		}
+		s.p = pack
+		s.loadStatesFromDeclarations(&states)
+	}
+	return states
+}
+
+var logFn = log.New(os.Stderr, "dot: ", log.LstdFlags).Printf
+
+func LoadStates(targets ...string) ([]Connectable, error) {
+	packages, err := parseTargetPackages(targets...)
+	if err != nil {
+		return nil, err
+	}
+	s := stateSearch{imports: make(map[string]string), loadInternal: true}
+	// NOTE(marius): we now have all ssm.Fn declared in the target packages.
+	states := s.loadStateNames(packages)
+
+	// NOTE(marius): we can iterate again and find each state's following states.
+	// This requires to look at the definitions of the states.
 	for _, pack := range packages {
 		if packageIsValid(pack) {
 			s.p = pack
-			appendStates(&s.states, s.loadStatesFromPackage()...)
+			s.loadNextStatesFromPackage(&states, pack.Name)
 		}
 	}
 	for _, pack := range packages {
 		if packageIsValid(pack) {
 			s.p = pack
-			s.loadNextStatesFromPackage(pack.Name)
+			s.loadStartFromPackage(&states)
 		}
 	}
 	for _, pack := range packages {
 		if packageIsValid(pack) {
 			s.p = pack
-			appendStates(&s.states, s.loadStatesFromPackage()...)
+			s.loadNextStatesFromPackage(&states, pack.Name)
 		}
 	}
-	for _, pack := range packages {
-		if packageIsValid(pack) {
-			s.p = pack
-			appendStates(&s.states, s.loadStartFromPackage()...)
-		}
-	}
-	for _, pack := range packages {
-		if packageIsValid(pack) {
-			s.p = pack
-			s.loadNextStatesFromPackage(pack.Name)
-		}
-	}
-	return s.states, errors.Join(errs...)
+	return states, nil
 }
 
 func packageIsUs(p *ast.Package) bool {
@@ -126,19 +142,17 @@ func importIsValid(imp *ast.ImportSpec) bool {
 	return strings.Trim(imp.Path.Value, `"`) == ssmModulePath
 }
 
-func (s stateSearch) loadStartFromPackage() []Connectable {
-	states := make([]Connectable, 0)
+func (s stateSearch) loadStartFromPackage(states *[]Connectable) []Connectable {
 	ast.Walk(walker(func(n ast.Node) bool {
-		if start := s.loadStartFromNode(n); start != nil {
-			appendStates(&states, start)
+		if start := s.loadStartFromNode(states, n); start != nil {
+			appendStates(states, start)
 		}
 		return true
 	}), s.p)
-	return states
+	return *states
 }
 
-func (s stateSearch) loadStatesFromPackage() []Connectable {
-	states := make([]Connectable, 0)
+func (s stateSearch) loadStatesFromDeclarations(states *[]Connectable) []Connectable {
 	ast.Walk(walker(func(n ast.Node) bool {
 		switch nn := n.(type) {
 		case *ast.Ident:
@@ -149,7 +163,7 @@ func (s stateSearch) loadStatesFromPackage() []Connectable {
 				return true
 			}
 			if state := s.loadStateFromIdent(nn); state != nil {
-				appendStates(&states, state)
+				appendStates(states, state)
 			}
 		case *ast.File:
 			for _, i := range nn.Imports {
@@ -160,12 +174,12 @@ func (s stateSearch) loadStatesFromPackage() []Connectable {
 			}
 		case *ast.FuncDecl:
 			if state := s.loadStateFromFuncDecl(nn); state != nil {
-				appendStates(&states, state)
+				appendStates(states, state)
 			}
 		}
 		return true
 	}), s.p)
-	return states
+	return *states
 }
 
 func appendStates(states *[]Connectable, toAppend ...Connectable) {
@@ -182,23 +196,23 @@ func appendStates(states *[]Connectable, toAppend ...Connectable) {
 	}
 }
 
-func (s stateSearch) loadNextStatesFromPackage(group string) {
+func (s stateSearch) loadNextStatesFromPackage(states *[]Connectable, group string) {
 	ast.Walk(walker(func(n ast.Node) bool {
 		switch fn := n.(type) {
 		case *ast.FuncDecl:
 			// Find the state
 			name := getStateNameFromNode(fn)
-			res, ok := findState(s.states, group, name)
+			res, ok := findState(*states, group, name)
 			if ok {
 				// extract next states from its return values
-				ast.Walk(walker(s.getReturns(res)), fn)
+				ast.Walk(walker(s.getReturns(states, res)), fn)
 			}
 		}
 		return true
 	}), s.p)
 }
 
-func (s stateSearch) loadStartFromNode(n ast.Node) Connectable {
+func (s stateSearch) loadStartFromNode(states *[]Connectable, n ast.Node) Connectable {
 	fn, ok := n.(*ast.ExprStmt)
 	if !ok {
 		return nil
@@ -210,7 +224,7 @@ func (s stateSearch) loadStartFromNode(n ast.Node) Connectable {
 
 	start := StateNode{Name: name, Group: ssmName}
 	// extract next states from its return values
-	ast.Walk(walker(s.getParams(&start)), fn)
+	ast.Walk(walker(s.getParams(states, &start)), fn)
 	return &start
 }
 

@@ -57,7 +57,7 @@ func findState(states []Connectable, group, n string) (Connectable, bool) {
 	return nil, false
 }
 
-func (s stateSearch) getParams(res Connectable) func(n ast.Node) bool {
+func (s stateSearch) getParams(states *[]Connectable, res Connectable) func(n ast.Node) bool {
 	return func(n ast.Node) bool {
 		call, ok := n.(*ast.CallExpr)
 		if !ok {
@@ -69,28 +69,28 @@ func (s stateSearch) getParams(res Connectable) func(n ast.Node) bool {
 				// TODO(marius): we need to do this recursively to load all states of form:
 				//   return State1(State2(State3(...)))
 				nm := getFuncNameFromExpr(r.Fun)
-				st, ok := findState(s.states, "", nm)
+				st, ok := findState(*states, "", nm)
 				if ok {
 					res.Append(st)
-					appendStates(&s.states, res)
+					appendStates(states, res)
 				}
 				for _, arg := range r.Args {
-					s.appendFuncNameFromArg(st, arg)
+					s.appendFuncNameFromArg(states, st, arg)
 				}
 			case *ast.Ident:
-				s.appendFuncNameFromArg(res, arg)
+				s.appendFuncNameFromArg(states, res, arg)
 			case *ast.FuncLit:
 				for _, rs := range r.Body.List {
-					ast.Walk(walker(s.getReturns(res)), rs)
+					ast.Walk(walker(s.getReturns(states, res)), rs)
 				}
 			case *ast.FuncType:
 				nm := getStateNameFromNode(r)
-				if st, ok := findState(s.states, "", nm); ok {
+				if st, ok := findState(*states, "", nm); ok {
 					res.Append(st)
 				}
 			case *ast.SelectorExpr:
 				nm := getFuncNameFromExpr(r)
-				if st, ok := findState(s.states, "", nm); ok {
+				if st, ok := findState(*states, "", nm); ok {
 					res.Append(st)
 				}
 			}
@@ -99,7 +99,7 @@ func (s stateSearch) getParams(res Connectable) func(n ast.Node) bool {
 	}
 }
 
-func (s stateSearch) getReturns(res Connectable) func(n ast.Node) bool {
+func (s stateSearch) getReturns(states *[]Connectable, res Connectable) func(n ast.Node) bool {
 	return func(n ast.Node) bool {
 		ret, ok := n.(*ast.ReturnStmt)
 		if !ok {
@@ -111,31 +111,31 @@ func (s stateSearch) getReturns(res Connectable) func(n ast.Node) bool {
 				// TODO(marius): we need to do this recursively to load all states of form:
 				//   return State1(State2(State3(...)))
 				nm := getFuncNameFromExpr(r.Fun)
-				st, ok := findState(s.states, "", nm)
+				st, ok := findState(*states, "", nm)
 				if ok {
 					res.Append(st)
-					appendStates(&s.states, st)
+					appendStates(states, st)
 				}
 				for _, arg := range r.Args {
-					s.appendFuncNameFromArg(st, arg)
+					s.appendFuncNameFromArg(states, st, arg)
 				}
 			case *ast.Ident:
-				s.appendFuncNameFromArg(res, rr)
+				s.appendFuncNameFromArg(states, res, rr)
 			case *ast.FuncLit:
 				for _, rs := range r.Body.List {
-					ast.Walk(walker(s.getReturns(res)), rs)
+					ast.Walk(walker(s.getReturns(states, res)), rs)
 				}
 			case *ast.FuncType:
 				nm := getStateNameFromNode(r)
-				if st, ok := findState(s.states, "", nm); ok {
+				if st, ok := findState(*states, "", nm); ok {
 					res.Append(st)
-					appendStates(&s.states, st)
+					appendStates(states, st)
 				}
 			case *ast.SelectorExpr:
 				nm := getFuncNameFromExpr(r)
-				if st, ok := findState(s.states, "", nm); ok {
+				if st, ok := findState(*states, "", nm); ok {
 					res.Append(st)
-					appendStates(&s.states, st)
+					appendStates(states, st)
 				}
 			}
 		}
@@ -201,7 +201,7 @@ func getStateNameFromNode(n ast.Node) string {
 	return name
 }
 
-func (s stateSearch) appendFuncNameFromArg(res Connectable, n ast.Node) {
+func (s stateSearch) appendFuncNameFromArg(states *[]Connectable, res Connectable, n ast.Node) {
 	name := ""
 	switch nn := n.(type) {
 	case *ast.Ident:
@@ -209,13 +209,13 @@ func (s stateSearch) appendFuncNameFromArg(res Connectable, n ast.Node) {
 	case *ast.CallExpr:
 		name = getFuncNameFromExpr(nn.Fun)
 	}
-	st, ok := findState(s.states, "", name)
+	st, ok := findState(*states, "", name)
 	if ok {
 		res.Append(st)
-		appendStates(&s.states, st)
+		appendStates(states, st)
 	}
 	if nn, ok := n.(*ast.CallExpr); ok {
-		ast.Walk(walker(s.getReturns(st)), nn)
+		ast.Walk(walker(s.getReturns(states, st)), nn)
 	}
 }
 

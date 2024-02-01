@@ -108,6 +108,17 @@ func (s stateSearch) findStartStates(states *[]Connectable, packages map[string]
 	return *states
 }
 
+func loadInternalStates(ssmPath string) ([]Connectable, error) {
+	packages, err := parseTargetPackages(ssmPath)
+	if err != nil {
+		return nil, err
+	}
+
+	s := stateSearch{imports: make(map[string]string), loadInternal: true}
+
+	return s.loadStateNames(packages), nil
+}
+
 func LoadStates(targets ...string) ([]Connectable, error) {
 	packages, err := parseTargetPackages(targets...)
 	if err != nil {
@@ -140,7 +151,7 @@ func packageIsValid(p *ast.Package) bool {
 	}
 	for _, f := range p.Files {
 		for _, imp := range f.Imports {
-			if importIsValid(imp) {
+			if importIsUs(imp) {
 				return true
 			}
 		}
@@ -148,7 +159,7 @@ func packageIsValid(p *ast.Package) bool {
 	return false
 }
 
-func importIsValid(imp *ast.ImportSpec) bool {
+func importIsUs(imp *ast.ImportSpec) bool {
 	return strings.Trim(imp.Path.Value, `"`) == ssmModulePath
 }
 

@@ -9,6 +9,9 @@ var SSMStates = make([]Connectable, 0)
 type StateNode struct {
 	Name       string
 	Group      string
+	inNames    []string
+	outNames   []string
+	InStates   []Connectable
 	NextStates []Connectable
 }
 

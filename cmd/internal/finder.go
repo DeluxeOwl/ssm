@@ -88,35 +88,45 @@ func (s stateSearch) loadStateNames(packages map[string]*ast.Package) []Connecta
 
 var logFn = log.New(os.Stderr, "dot: ", log.LstdFlags).Printf
 
+func (s stateSearch) loadNextStates(states *[]Connectable, packages map[string]*ast.Package) []Connectable {
+	for _, pack := range packages {
+		if packageIsValid(pack) {
+			s.p = pack
+			s.loadNextStatesFromPackage(states, pack.Name)
+		}
+	}
+	return *states
+}
+
+func (s stateSearch) findStartStates(states *[]Connectable, packages map[string]*ast.Package) []Connectable {
+	for _, pack := range packages {
+		if packageIsValid(pack) {
+			s.p = pack
+			s.loadStartFromPackage(states)
+		}
+	}
+	return *states
+}
+
 func LoadStates(targets ...string) ([]Connectable, error) {
 	packages, err := parseTargetPackages(targets...)
 	if err != nil {
 		return nil, err
 	}
+
 	s := stateSearch{imports: make(map[string]string), loadInternal: true}
+
 	// NOTE(marius): we now have all ssm.Fn declared in the target packages.
 	states := s.loadStateNames(packages)
 
 	// NOTE(marius): we can iterate again and find each state's following states.
 	// This requires to look at the definitions of the states.
-	for _, pack := range packages {
-		if packageIsValid(pack) {
-			s.p = pack
-			s.loadNextStatesFromPackage(&states, pack.Name)
-		}
-	}
-	for _, pack := range packages {
-		if packageIsValid(pack) {
-			s.p = pack
-			s.loadStartFromPackage(&states)
-		}
-	}
-	for _, pack := range packages {
-		if packageIsValid(pack) {
-			s.p = pack
-			s.loadNextStatesFromPackage(&states, pack.Name)
-		}
-	}
+	states = s.loadNextStates(&states, packages)
+
+	// NOTE(marius): we can now find where the targets are calling ssm.Run/ssm.RunParallel
+	// and build the state graph out of that.
+	states = s.findStartStates(&states, packages)
+
 	return states, nil
 }
 

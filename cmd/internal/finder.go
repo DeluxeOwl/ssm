@@ -56,6 +56,10 @@ func parseTargetPackages(targets ...string) (map[string]*ast.Package, error) {
 				continue
 			}
 			for pn, p := range pp {
+				if !packageIsValid(p) {
+					logFn("no states in package %q, skipping", p.Name)
+					continue
+				}
 				packages[pn] = p
 			}
 		} else {
@@ -66,7 +70,11 @@ func parseTargetPackages(targets ...string) (map[string]*ast.Package, error) {
 				errs = append(errs, err)
 				continue
 			}
-			packages[parent] = &ast.Package{Name: parent, Files: map[string]*ast.File{target: f}}
+			p := &ast.Package{Name: parent, Files: map[string]*ast.File{target: f}}
+			if packageIsValid(p) {
+				logFn("no states in package %q, skipping", p.Name)
+				packages[parent] = p
+			}
 		}
 	}
 	return packages, errors.Join(errs...)
@@ -76,10 +84,6 @@ func parseTargetPackages(targets ...string) (map[string]*ast.Package, error) {
 func (s stateSearch) loadStateNames(packages map[string]*ast.Package) []Connectable {
 	states := make([]Connectable, 0)
 	for _, pack := range packages {
-		if !packageIsValid(pack) {
-			logFn("no states in package %q, skipping", pack.Name)
-			continue
-		}
 		s.p = pack
 		s.loadStatesFromDeclarations(&states)
 	}
@@ -90,20 +94,16 @@ var logFn = log.New(os.Stderr, "dot: ", log.LstdFlags).Printf
 
 func (s stateSearch) loadNextStates(states *[]Connectable, packages map[string]*ast.Package) []Connectable {
 	for _, pack := range packages {
-		if packageIsValid(pack) {
-			s.p = pack
-			s.loadNextStatesFromPackage(states, pack.Name)
-		}
+		s.p = pack
+		s.loadNextStatesFromPackage(states, pack.Name)
 	}
 	return *states
 }
 
 func (s stateSearch) findStartStates(states *[]Connectable, packages map[string]*ast.Package) []Connectable {
 	for _, pack := range packages {
-		if packageIsValid(pack) {
-			s.p = pack
-			s.loadStartFromPackage(states)
-		}
+		s.p = pack
+		s.loadStartFromPackage(states)
 	}
 	return *states
 }

@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func FindAllTargets(args ...string) []string {
+func FindValidTargets(args ...string) []string {
 	if len(args) == 0 {
 		return nil
 	}

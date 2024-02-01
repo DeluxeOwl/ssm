@@ -6,4 +6,5 @@ sources:
 tasks:
   - tests: |
       cd ssm
+      go mod tidy
       go test -cover -race -v ./...

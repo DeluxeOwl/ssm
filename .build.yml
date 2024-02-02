@@ -9,4 +9,5 @@ tasks:
       go install git.sr.ht/~mariusor/ssm@latest
 
       cd ssm
+      go mod tidy
       go test -cover -race -v ./...

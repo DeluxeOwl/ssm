@@ -5,6 +5,10 @@ sources:
   - https://git.sr.ht/~mariusor/ssm
 tasks:
   - tests: |
-      cd ssm
       export GOMODCACHE=$(go env GOMODCACHE)
+
+      cd ssm
+      go test -cover -race -v ./...
+
+      cd ./cmd/tests
       go test -cover -race -v ./...

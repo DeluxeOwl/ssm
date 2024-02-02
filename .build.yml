@@ -6,9 +6,7 @@ sources:
 tasks:
   - tests: |
       export GOMODCACHE=$(go env GOMODCACHE)
+      go install git.sr.ht/~mariusor/ssm@latest
 
       cd ssm
-      go test -cover -race -v ./...
-
-      cd ./cmd/tests
       go test -cover -race -v ./...

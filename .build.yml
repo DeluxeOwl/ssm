@@ -6,7 +6,7 @@ sources:
 tasks:
   - tests: |
       export GOMODCACHE=$(go env GOMODCACHE)
-      go install git.sr.ht/~mariusor/ssm@latest
+      go install git.sr.ht/~mariusor/ssm@latest || true
 
       cd ssm
       go mod tidy

@@ -6,4 +6,5 @@ sources:
 tasks:
   - tests: |
       cd ssm
+      export GOMODCACHE=$(go env GOMODCACHE)
       go test -cover -race -v ./...

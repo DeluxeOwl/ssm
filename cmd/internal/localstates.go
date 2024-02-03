@@ -6,11 +6,19 @@ import "strings"
 // They get parsed dynamically at module.init() time
 var SSMStates = make([]Connectable, 0)
 
+type Flag int8
+
+const (
+	FlagExported = 1 << iota
+	FlagTerminator
+
+	FlagNone Flag = 0
+)
+
 type StateNode struct {
 	Name       string
 	Group      string
-	inNames    []string
-	outNames   []string
+	Flags      Flag
 	InStates   []Connectable
 	NextStates []Connectable
 }

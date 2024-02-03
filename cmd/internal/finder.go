@@ -31,8 +31,6 @@ var (
 type stateSearch struct {
 	p *ast.Package
 
-	loadInternal bool
-
 	imports map[string]string
 }
 
@@ -107,24 +105,13 @@ func (s stateSearch) findStartStates(states *[]Connectable, packages map[string]
 	return *states
 }
 
-func loadInternalStates(ssmPath string) ([]Connectable, error) {
-	packages, err := parseTargetPackages(ssmPath)
-	if err != nil {
-		return nil, err
-	}
-
-	s := stateSearch{imports: make(map[string]string), loadInternal: true}
-
-	return s.loadStateNames(packages), nil
-}
-
 func LoadStates(targets ...string) ([]Connectable, error) {
 	packages, err := parseTargetPackages(targets...)
 	if err != nil {
 		return nil, err
 	}
 
-	s := stateSearch{imports: make(map[string]string), loadInternal: true}
+	s := stateSearch{imports: make(map[string]string)}
 
 	// NOTE(marius): we now have all ssm.Fn declared in the target packages.
 	states := s.loadStateNames(packages)

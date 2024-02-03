@@ -3,7 +3,6 @@ package internal
 import (
 	"go/ast"
 	"strings"
-	"unicode"
 )
 
 // Connectable is a dot.Node or a *internal.StateNode
@@ -14,24 +13,27 @@ type Connectable interface {
 	Append(n ...Connectable)
 }
 
-func functionIsNotExported(name string) bool {
-	if name == "" {
-		return false
-	}
-	return unicode.IsLower(rune(name[0]))
-}
-
 func (s stateSearch) fromNode(fn ast.Node) Connectable {
 	group := s.packageName()
 	name := getStateNameFromNode(fn)
 
-	if name == "" || (strings.EqualFold(group, ssmName) && !s.loadInternal && functionIsNotExported(name)) {
+	if strings.Contains(name, group) {
+		name = strings.TrimPrefix(strings.TrimPrefix(name, group), ".")
+	}
+
+	if name == "" {
 		return nil
+	}
+
+	flags := FlagNone
+	if ast.IsExported(name) {
+		flags |= FlagExported
 	}
 
 	res := &StateNode{
 		Name:       name,
 		Group:      group,
+		Flags:      flags,
 		NextStates: make([]Connectable, 0),
 	}
 

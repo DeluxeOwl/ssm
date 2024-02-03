@@ -17,13 +17,11 @@ import (
 
 var (
 	_fnReflectType = reflect.ValueOf(ssm.Fn(nil)).Type()
+	build, _       = debug.ReadBuildInfo()
 
-	ssmStateType  = _fnReflectType.String()
-	ssmModulePath = _fnReflectType.PkgPath()
-	ssmName       = filepath.Base(ssmModulePath)
-
-	build, _ = debug.ReadBuildInfo()
-	//ssmModulePath    = build.Main.Path
+	ssmStateType     = _fnReflectType.String()
+	ssmModulePath    = _fnReflectType.PkgPath()
+	ssmName          = filepath.Base(ssmModulePath)
 	ssmModuleVersion = build.Main.Version
 
 	ssmRun         = ssmName + ".Run"

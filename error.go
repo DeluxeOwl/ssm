@@ -7,13 +7,13 @@ import (
 
 // ErrorEnd represents an error state which returns an End state.
 func ErrorEnd(err error) Fn {
-	return errState{err}.runStop
+	return errState{err}.stop
 }
 
 // ErrorRestart represents an error state which returns the first iteration passed.
 // This iteration is loaded from the context, and is saved there by the Run and RunParallel functions.
 func ErrorRestart(err error) Fn {
-	return errState{err}.runRestart
+	return errState{err}.restart
 }
 
 // StartState retrieves the initial state from ctx context.Context.
@@ -53,8 +53,8 @@ func ptrOf(t Fn) uintptr {
 }
 
 var (
-	_ptrEndStop    = ptrOf(errState{}.runStop)
-	_ptrEndRestart = ptrOf(errState{}.runRestart)
+	_ptrEndStop    = ptrOf(errState{}.stop)
+	_ptrEndRestart = ptrOf(errState{}.restart)
 )
 
 // IsError ver grubby API to check if a state Fn is an error state
@@ -63,10 +63,10 @@ func IsError(f Fn) bool {
 	return p == _ptrEndStop || p == _ptrEndRestart
 }
 
-func (e errState) runStop(_ context.Context) Fn {
+func (e errState) stop(_ context.Context) Fn {
 	return End
 }
 
-func (e errState) runRestart(ctx context.Context) Fn {
+func (e errState) restart(ctx context.Context) Fn {
 	return StartState(ctx)
 }

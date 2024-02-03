@@ -45,12 +45,12 @@ func TestError(t *testing.T) {
 		{
 			name: "empty",
 			err:  nil,
-			want: errState{}.runStop,
+			want: errState{}.stop,
 		},
 		{
 			name: "random err",
 			err:  fmt.Errorf("test"),
-			want: errState{fmt.Errorf("test")}.runStop,
+			want: errState{fmt.Errorf("test")}.stop,
 		},
 	}
 	for _, tt := range tests {
@@ -77,18 +77,18 @@ func TestErrorRestart(t *testing.T) {
 		{
 			name: "empty",
 			err:  nil,
-			want: errState{}.runRestart,
+			want: errState{}.restart,
 		},
 		{
 			name: "random err, background context",
 			err:  fmt.Errorf("test"),
-			want: errState{fmt.Errorf("test")}.runRestart,
+			want: errState{fmt.Errorf("test")}.restart,
 		},
 		{
 			name:     "random err, start state in context",
 			err:      fmt.Errorf("test"),
 			ctx:      context.WithValue(context.Background(), __start, mockEmpty),
-			want:     errState{fmt.Errorf("test")}.runRestart,
+			want:     errState{fmt.Errorf("test")}.restart,
 			endState: mockEmpty,
 		},
 	}

@@ -21,7 +21,8 @@ func functionIsNotExported(name string) bool {
 	return unicode.IsLower(rune(name[0]))
 }
 
-func (s stateSearch) fromNode(fn ast.Node, group string) Connectable {
+func (s stateSearch) fromNode(fn ast.Node) Connectable {
+	group := s.packageName()
 	name := getStateNameFromNode(fn)
 
 	if name == "" || (strings.EqualFold(group, ssmName) && !s.loadInternal && functionIsNotExported(name)) {
@@ -69,7 +70,7 @@ func (s stateSearch) getParams(states *[]Connectable, res Connectable) func(n as
 				// TODO(marius): we need to do this recursively to load all states of form:
 				//   return State1(State2(State3(...)))
 				nm := getFuncNameFromExpr(r.Fun)
-				st, ok := findState(*states, "", nm)
+				st, ok := findState(*states, s.packageName(), nm)
 				if ok {
 					res.Append(st)
 					appendStates(states, res)
@@ -85,12 +86,12 @@ func (s stateSearch) getParams(states *[]Connectable, res Connectable) func(n as
 				}
 			case *ast.FuncType:
 				nm := getStateNameFromNode(r)
-				if st, ok := findState(*states, "", nm); ok {
+				if st, ok := findState(*states, s.packageName(), nm); ok {
 					res.Append(st)
 				}
 			case *ast.SelectorExpr:
 				nm := getFuncNameFromExpr(r)
-				if st, ok := findState(*states, "", nm); ok {
+				if st, ok := findState(*states, s.packageName(), nm); ok {
 					res.Append(st)
 				}
 			}
@@ -111,13 +112,13 @@ func (s stateSearch) getReturns(states *[]Connectable, res Connectable) func(n a
 				// TODO(marius): we need to do this recursively to load all states of form:
 				//   return State1(State2(State3(...)))
 				nm := getFuncNameFromExpr(r.Fun)
-				st, ok := findState(*states, "", nm)
+				st, ok := findState(*states, s.packageName(), nm)
 				if ok {
 					res.Append(st)
 					appendStates(states, st)
-				}
-				for _, arg := range r.Args {
-					s.appendFuncNameFromArg(states, st, arg)
+					for _, arg := range r.Args {
+						s.appendFuncNameFromArg(states, st, arg)
+					}
 				}
 			case *ast.Ident:
 				s.appendFuncNameFromArg(states, res, rr)
@@ -127,13 +128,15 @@ func (s stateSearch) getReturns(states *[]Connectable, res Connectable) func(n a
 				}
 			case *ast.FuncType:
 				nm := getStateNameFromNode(r)
-				if st, ok := findState(*states, "", nm); ok {
+				st, ok := findState(*states, s.packageName(), nm)
+				if ok {
 					res.Append(st)
 					appendStates(states, st)
 				}
 			case *ast.SelectorExpr:
 				nm := getFuncNameFromExpr(r)
-				if st, ok := findState(*states, "", nm); ok {
+				st, ok := findState(*states, s.packageName(), nm)
+				if ok {
 					res.Append(st)
 					appendStates(states, st)
 				}
@@ -209,7 +212,7 @@ func (s stateSearch) appendFuncNameFromArg(states *[]Connectable, res Connectabl
 	case *ast.CallExpr:
 		name = getFuncNameFromExpr(nn.Fun)
 	}
-	st, ok := findState(*states, "", name)
+	st, ok := findState(*states, s.packageName(), name)
 	if ok {
 		res.Append(st)
 		appendStates(states, st)

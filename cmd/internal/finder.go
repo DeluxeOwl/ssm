@@ -94,7 +94,7 @@ var logFn = log.New(os.Stderr, "dot: ", log.LstdFlags).Printf
 func (s stateSearch) loadNextStates(states *[]Connectable, packages map[string]*ast.Package) []Connectable {
 	for _, pack := range packages {
 		s.p = pack
-		s.loadNextStatesFromPackage(states, pack.Name)
+		s.loadNextStatesFromPackage(states)
 	}
 	return *states
 }
@@ -216,7 +216,11 @@ func appendStates(states *[]Connectable, toAppend ...Connectable) {
 	}
 }
 
-func (s stateSearch) loadNextStatesFromPackage(states *[]Connectable, group string) {
+func (s stateSearch) packageName() string {
+	return s.p.Name
+}
+func (s stateSearch) loadNextStatesFromPackage(states *[]Connectable) {
+	group := s.packageName()
 	ast.Walk(walker(func(n ast.Node) bool {
 		switch fn := n.(type) {
 		case *ast.FuncDecl:
@@ -260,8 +264,7 @@ func (s stateSearch) loadStateFromIdent(n ast.Node) Connectable {
 	if !typeIsValid(decl.Type, s.imports) {
 		return nil
 	}
-	group := s.p.Name
-	return s.fromNode(id, group)
+	return s.fromNode(id)
 }
 
 func (s stateSearch) fromFuncBody(fn *ast.BlockStmt) Connectable {
@@ -274,11 +277,10 @@ func (s stateSearch) fromFuncBody(fn *ast.BlockStmt) Connectable {
 func (s stateSearch) fromStateFuncDecl(fn *ast.FuncDecl) Connectable {
 	result := fn.Type.Results.List[0]
 
-	group := s.p.Name
 	if !s.returnIsValid(result, s.imports) {
 		return nil
 	}
-	return s.fromNode(fn, group)
+	return s.fromNode(fn)
 }
 
 func (s stateSearch) loadStateFromFuncDecl(n ast.Node) Connectable {

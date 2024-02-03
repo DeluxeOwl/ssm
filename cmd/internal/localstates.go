@@ -40,10 +40,13 @@ func (s *StateNode) Append(n ...Connectable) {
 
 func (s *StateNode) Match(group, name string) bool {
 	if group == "" {
+		if s.Name == s.Name {
+			return true
+		}
 		if b, a, ok := strings.Cut(name, "."); ok {
 			group = b
 			name = a
 		}
 	}
-	return s.Name == name && (group == "" || s.Group == group)
+	return s.Name == name && s.Group == group
 }

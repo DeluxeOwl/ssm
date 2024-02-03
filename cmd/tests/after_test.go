@@ -18,11 +18,13 @@ func Example_AfterTwoSeconds() {
 	_, f, _, _ := runtime.Caller(0)
 	states, _ := internal.LoadStates(f)
 	_ = dot.Dot("", states...)
-
 	// Output: digraph  {
 	//	subgraph cluster_s3 {
 	//		label="ssm";
 	//		n4[label="After"];
+	//		n6[label="End"];
+	//		n5[label="after.run"];
+	//		n7[label="runAfter"];
 	//
 	//	}
 	//	subgraph cluster_s1 {
@@ -31,7 +33,10 @@ func Example_AfterTwoSeconds() {
 	//
 	//	}
 	//
+	//	n4->n5;
 	//	n2->n4;
+	//	n5->n6;
+	//	n5->n7;
 	//
 	//}
 }

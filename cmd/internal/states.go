@@ -41,12 +41,6 @@ func (s stateSearch) fromNode(fn ast.Node) Connectable {
 }
 
 func findState(states []Connectable, group, n string) (Connectable, bool) {
-	if group == "" {
-		if b, a, ok := strings.Cut(n, "."); ok {
-			group = b
-			n = a
-		}
-	}
 	for _, ss := range states {
 		if ss.Match(group, n) {
 			return ss, true
@@ -56,6 +50,11 @@ func findState(states []Connectable, group, n string) (Connectable, bool) {
 		if s.Match(group, n) {
 			return s, true
 		}
+	}
+	if b, a, ok := strings.Cut(n, "."); ok {
+		group = b
+		n = a
+		return findState(states, group, n)
 	}
 	return nil, false
 }

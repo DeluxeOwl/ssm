@@ -71,10 +71,11 @@ func parseTargetPackages(targets ...string) (map[string]*ast.Package, error) {
 				continue
 			}
 			p := &ast.Package{Name: parent, Files: map[string]*ast.File{target: f}}
-			if packageIsValid(p) {
+			if !packageIsValid(p) {
 				logFn("no states in package %q, skipping", p.Name)
-				packages[parent] = p
+				continue
 			}
+			packages[parent] = p
 		}
 	}
 	return packages, errors.Join(errs...)

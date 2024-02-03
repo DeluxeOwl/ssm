@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
+	"runtime"
 
 	"git.sr.ht/~mariusor/ssm"
 	"git.sr.ht/~mariusor/ssm/cmd/internal"
@@ -17,9 +17,10 @@ func example() {
 	ssm.Run(context.Background(), ssm.End, ssm.ErrorEnd(fmt.Errorf("text")))
 }
 
-func Example_Run() {
-	states, _ := internal.LoadStates(filepath.Join(cwd, "run_test.go"))
-	dot.Dot("", states...)
+func Example_example() {
+	_, f, _, _ := runtime.Caller(0)
+	states, _ := internal.LoadStates(f)
+	_ = dot.Dot("", states...)
 
 	// Output: digraph  {
 	//	subgraph cluster_s1 {

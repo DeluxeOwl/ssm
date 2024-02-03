@@ -3,9 +3,12 @@ package tests
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"time"
 
 	sm "git.sr.ht/~mariusor/ssm"
+	"git.sr.ht/~mariusor/ssm/cmd/internal"
+	"git.sr.ht/~mariusor/ssm/cmd/internal/dot"
 )
 
 // LogAndStop -> ssm.ErrorEnd -> ssm.End
@@ -28,4 +31,24 @@ func (s ts) run(_ context.Context) sm.Fn {
 		return Stop()
 	}
 	return LogAndStop(fmt.Errorf("test"))
+}
+
+func Example_ts_run() {
+	_, f, _, _ := runtime.Caller(0)
+	states, _ := internal.LoadStates(f)
+	_ = dot.Dot("", states...)
+
+	// Output: digraph  {
+	//	subgraph cluster_s1 {
+	//		label="tests";
+	//		n2[label="LogAndStop"];
+	//		n3[label="Stop"];
+	//		n4[label="ts.run"];
+	//
+	//	}
+	//
+	//	n4->n3;
+	//	n4->n2;
+	//
+	//}
 }

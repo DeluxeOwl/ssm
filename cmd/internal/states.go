@@ -156,14 +156,23 @@ func getFuncNameFromExpr(ex ast.Expr) string {
 		name := ee.Sel.String()
 		if ee.X != nil {
 			switch tt := ee.X.(type) {
+			case *ast.CompositeLit:
+				name = getFuncNameFromExpr(tt.Type) + "." + name
 			case *ast.CallExpr:
 				name = getFuncNameFromExpr(tt.Fun) + "." + name
+			case *ast.SelectorExpr:
+				name = getFuncNameFromExpr(tt.X) + "." + name
 			case *ast.Ident:
 				ident := tt
 				if ident.Obj != nil {
 					if ident.Obj.Decl != nil {
 						if f, ok := ident.Obj.Decl.(*ast.Field); ok {
 							name = getFuncNameFromExpr(f.Type) + "." + name
+						}
+						if d, ok := ident.Obj.Decl.(*ast.AssignStmt); ok && len(d.Rhs) > 0 {
+							if c, ok := d.Rhs[0].(*ast.CallExpr); ok && len(c.Args) == 1 {
+								name = getFuncNameFromExpr(c.Args[0]) + "." + name
+							}
 						}
 					}
 				} else {

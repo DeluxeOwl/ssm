@@ -51,7 +51,7 @@ func ExampleRetry() {
 		run := time.Now()
 		fmt.Printf("%d:%s ", cnt, run.Sub(st).Truncate(time.Millisecond))
 		st = run
-		return sm.ErrorEnd(fmt.Errorf("err"))
+		return sm.ErrorEnd(fmt.Errorf("retrying"))
 	})
 
 	sm.Run(context.Background(), start)
@@ -69,10 +69,7 @@ func ExampleConstant() {
 		cnt++
 		fmt.Printf("%d:%s ", cnt, run.Sub(st).Truncate(10*time.Millisecond))
 		st = run
-		if cnt < 8 {
-			return sm.ErrorEnd(fmt.Errorf("err"))
-		}
-		return sm.End
+		return sm.ErrorEnd(fmt.Errorf("keep going"))
 	}))
 
 	sm.Run(context.Background(), start)
@@ -90,7 +87,7 @@ func ExampleLinear() {
 		cnt++
 		fmt.Printf("%d:%s ", cnt, run.Sub(st).Truncate(10*time.Millisecond))
 		st = run
-		return sm.ErrorEnd(fmt.Errorf("err"))
+		return sm.ErrorEnd(fmt.Errorf("don't stop"))
 	}))
 
 	sm.Run(context.Background(), start)
@@ -109,7 +106,7 @@ func ExampleJitter() {
 		// NOTE(marius): The jitter adds max half a ms, so with truncation this will be correct output
 		fmt.Printf("%d:%s ", cnt, run.Sub(st).Truncate(time.Millisecond))
 		st = run
-		return sm.ErrorEnd(fmt.Errorf("err"))
+		return sm.ErrorEnd(fmt.Errorf("never right"))
 	}))
 
 	sm.Run(context.Background(), start)

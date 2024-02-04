@@ -10,7 +10,7 @@ import (
 
 type maxKey string
 
-const max maxKey = "__max"
+const _max maxKey = "__max"
 const delay = 10 * time.Millisecond
 
 func start(ctx context.Context) sm.Fn {
@@ -23,7 +23,7 @@ type iter int
 
 func (i *iter) next(ctx context.Context) sm.Fn {
 	fmt.Printf("%d ", *i)
-	if m, ok := ctx.Value(max).(int); ok {
+	if m, ok := ctx.Value(_max).(int); ok {
 		if int(*i) == m {
 			fmt.Print("end")
 			return sm.End
@@ -34,50 +34,11 @@ func (i *iter) next(ctx context.Context) sm.Fn {
 }
 
 func ExampleRun() {
-	ctx := context.WithValue(context.Background(), max, 10)
+	ctx := context.WithValue(context.Background(), _max, 10)
 
 	sm.Run(ctx, start)
 
 	// Output: start 0 1 2 3 4 5 6 7 8 9 10 end
-}
-
-func ExampleBackOff() {
-	st := time.Now()
-	cnt := 0
-
-	fmt.Printf("Retries: ")
-	start := sm.Retry(5, sm.BackOff(sm.Linear(delay, 2), func(_ context.Context) sm.Fn {
-		run := time.Now()
-		cnt++
-		fmt.Printf("%d:%s ", cnt, run.Sub(st).Truncate(10*time.Millisecond))
-		st = run
-		return sm.ErrorEnd(fmt.Errorf("err"))
-	}))
-
-	sm.Run(context.Background(), start)
-
-	// Output: Retries: 1:10ms 2:20ms 3:40ms 4:80ms 5:160ms
-}
-
-func ExampleBackOff2() {
-	st := time.Now()
-	cnt := 0
-
-	fmt.Printf("Retries: ")
-	start := sm.Retry(5, sm.BackOff(sm.Linear(delay, 2), func(_ context.Context) sm.Fn {
-		run := time.Now()
-		cnt++
-		fmt.Printf("%d:%s ", cnt, run.Sub(st).Truncate(10*time.Millisecond))
-		st = run
-		if cnt < 4 {
-			return sm.ErrorEnd(fmt.Errorf("err"))
-		}
-		return sm.End
-	}))
-
-	sm.Run(context.Background(), start)
-
-	// Output: Retries: 1:10ms 2:20ms 3:40ms 4:80ms
 }
 
 func ExampleRetry() {
@@ -98,24 +59,60 @@ func ExampleRetry() {
 	// Output: Retries: 1:0s 2:0s 3:0s 4:0s 5:0s 6:0s 7:0s 8:0s 9:0s 10:0s
 }
 
-func ExampleRetry2() {
+func ExampleConstant() {
 	st := time.Now()
 	cnt := 0
 
 	fmt.Printf("Retries: ")
-	start := sm.Retry(10, sm.BackOff(sm.Linear(delay, 2), func(_ context.Context) sm.Fn {
+	start := sm.Retry(8, sm.BackOff(sm.Constant(delay), func(_ context.Context) sm.Fn {
 		run := time.Now()
 		cnt++
 		fmt.Printf("%d:%s ", cnt, run.Sub(st).Truncate(10*time.Millisecond))
 		st = run
-		if cnt < 4 {
+		if cnt < 8 {
 			return sm.ErrorEnd(fmt.Errorf("err"))
 		}
-		// We resolve to a non error state after 4 retries
 		return sm.End
 	}))
 
 	sm.Run(context.Background(), start)
 
-	// Output: Retries: 1:10ms 2:20ms 3:40ms 4:80ms
+	// Output: Retries: 1:10ms 2:10ms 3:10ms 4:10ms 5:10ms 6:10ms 7:10ms 8:10ms
+}
+
+func ExampleLinear() {
+	st := time.Now()
+	cnt := 0
+
+	fmt.Printf("Retries: ")
+	start := sm.Retry(5, sm.BackOff(sm.Linear(delay, 2), func(_ context.Context) sm.Fn {
+		run := time.Now()
+		cnt++
+		fmt.Printf("%d:%s ", cnt, run.Sub(st).Truncate(10*time.Millisecond))
+		st = run
+		return sm.ErrorEnd(fmt.Errorf("err"))
+	}))
+
+	sm.Run(context.Background(), start)
+
+	// Output: Retries: 1:10ms 2:20ms 3:40ms 4:80ms 5:160ms
+}
+
+func ExampleJitter() {
+	st := time.Now()
+	cnt := 0
+
+	fmt.Printf("Retries: ")
+	start := sm.Retry(2, sm.BackOff(sm.Jitter(500*time.Microsecond, sm.Constant(delay)), func(_ context.Context) sm.Fn {
+		run := time.Now()
+		cnt++
+		// NOTE(marius): The jitter adds max half a ms, so with truncation this will be correct output
+		fmt.Printf("%d:%s ", cnt, run.Sub(st).Truncate(time.Millisecond))
+		st = run
+		return sm.ErrorEnd(fmt.Errorf("err"))
+	}))
+
+	sm.Run(context.Background(), start)
+
+	// Output: Retries: 1:11ms 2:11ms
 }

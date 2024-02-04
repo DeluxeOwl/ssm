@@ -100,16 +100,17 @@ func ExampleJitter() {
 	cnt := 0
 
 	fmt.Printf("Retries: ")
-	start := sm.Retry(2, sm.BackOff(sm.Jitter(500*time.Microsecond, sm.Constant(delay)), func(_ context.Context) sm.Fn {
+	start := sm.Retry(2, sm.BackOff(sm.Jitter(time.Millisecond, sm.Constant(delay)), func(_ context.Context) sm.Fn {
 		run := time.Now()
 		cnt++
-		// NOTE(marius): The jitter adds max half a ms, so with truncation this will be correct output
-		fmt.Printf("%d:%s ", cnt, run.Sub(st).Truncate(time.Millisecond))
+		// NOTE(marius): The jitter adds a maximum of one ms, so with truncation of 2 ms the output will be correct
+		// This is not a very good example test.
+		fmt.Printf("%d:%s ", cnt, run.Sub(st).Truncate(2*time.Millisecond))
 		st = run
 		return sm.ErrorEnd(fmt.Errorf("never right"))
 	}))
 
 	sm.Run(context.Background(), start)
 
-	// Output: Retries: 1:11ms 2:11ms
+	// Output: Retries: 1:10ms 2:10ms
 }

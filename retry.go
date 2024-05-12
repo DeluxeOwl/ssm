@@ -62,8 +62,13 @@ func Linear(d time.Duration, m float64) StrategyFn {
 
 // Jitter adds random jitter of "max" time.Duration for the fn StrategyFn
 func Jitter(max time.Duration, fn StrategyFn) StrategyFn {
+	var d time.Duration
 	return func() time.Duration {
 		j := rand.Int63n(int64(max))
-		return fn() + time.Duration(j)
+		if fn != nil {
+			d = fn()
+		}
+
+		return d + time.Duration(j)
 	}
 }

@@ -199,3 +199,15 @@ func ExampleBreakerWithTimer() {
 	// failure[2] after 2ms
 	// failure[3] after 6ms
 }
+
+func ExampleContextDone() {
+	ctx, stopFn := context.WithCancelCause(context.Background())
+	sm.Run(ctx, func(ctx context.Context) sm.Fn {
+		stopFn(errors.New("hahahaha"))
+		return sm.End
+	})
+
+	fmt.Printf("%s", context.Cause(ctx))
+
+	// Output: hahahaha
+}

@@ -36,7 +36,7 @@ func loop(ctx context.Context, state Fn) {
 	for {
 		select {
 		case <-ctx.Done():
-			if err := ctx.Err(); err != nil {
+			if err := context.Cause(ctx); err != nil {
 				state = ErrorEnd(err)
 			}
 			state = End

@@ -2,6 +2,7 @@ package ssm_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -138,4 +139,63 @@ func ExampleJitter() {
 	// Output: 2 retries with 1ms jitter over 10ms delay
 	// 1:10ms
 	// 2:10ms
+}
+
+func ExampleBreakerWithCount() {
+	cnt := 0
+
+	fmt.Printf("Stop after 2 successes and 2 failures\n")
+	brk := sm.Breaker(sm.MaxTriesTrip(2), func(ctx context.Context) sm.Fn {
+		defer func() { cnt++ }()
+		if cnt < 2 {
+			fmt.Printf("success[%d]\n", cnt)
+			return sm.End
+		}
+		fmt.Printf("failure[%d]\n", cnt)
+		return sm.ErrorRestart(errors.New("fail"))
+	})
+
+	sm.Run(context.Background(), brk)
+	// Output: Stop after 2 successes and 2 failures
+	// success[0]
+	// success[1]
+	// failure[2]
+	// failure[3]
+}
+
+func roundRound(d time.Duration) sm.Fn {
+	it := 0
+	errCnt := 0
+	var st time.Time
+
+	return func(ctx context.Context) sm.Fn {
+		// we simulate work by sleeping for duration "d"
+		time.Sleep(d)
+		defer func() { it++ }()
+
+		// we return failures only when iteration count is divisible by 3
+		if it != 0 && it%3 == 0 {
+			if it == 3 {
+				st = time.Now()
+			}
+			errCnt++
+			fmt.Printf("failure[%d] after %s\n", errCnt, time.Now().Sub(st).Truncate(2*time.Millisecond).String())
+			return sm.ErrorRestart(errors.New("fail"))
+		}
+
+		return roundRound(d)
+	}
+}
+
+func ExampleBreakerWithTimer() {
+	fmt.Printf("Stop after 3 failures in 10ms\n")
+
+	brk := sm.Breaker(sm.TimedTrip(10*time.Millisecond, sm.MaxTriesTrip(3)), roundRound(time.Millisecond))
+
+	sm.Run(context.Background(), brk)
+
+	// Output: Stop after 3 failures in 10ms
+	// failure[1] after 0s
+	// failure[2] after 2ms
+	// failure[3] after 6ms
 }

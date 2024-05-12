@@ -63,48 +63,50 @@ func ExampleConstant() {
 	st := time.Now()
 	cnt := 0
 
-	fmt.Printf("Retries: ")
+	fmt.Printf("8 retries with constant backoff of 10ms\n")
 	start := sm.Retry(8, sm.BackOff(sm.Constant(delay), func(_ context.Context) sm.Fn {
 		run := time.Now()
 		cnt++
-		fmt.Printf("%d:%s ", cnt, run.Sub(st).Truncate(10*time.Millisecond))
+		fmt.Printf("%d:%s ", cnt, run.Sub(st).Truncate(delay))
 		st = run
 		return sm.ErrorEnd(fmt.Errorf("keep going"))
 	}))
 
 	sm.Run(context.Background(), start)
 
-	// Output: Retries: 1:10ms 2:10ms 3:10ms 4:10ms 5:10ms 6:10ms 7:10ms 8:10ms
+	// Output: 8 retries with constant backoff of 10ms
+	// 1:10ms 2:10ms 3:10ms 4:10ms 5:10ms 6:10ms 7:10ms 8:10ms
 }
 
 func ExampleLinear() {
 	st := time.Now()
 	cnt := 0
 
-	fmt.Printf("Retries: ")
+	fmt.Printf("5 retries with 2x linear backoff 10ms delay\n")
 	start := sm.Retry(5, sm.BackOff(sm.Linear(delay, 2), func(_ context.Context) sm.Fn {
 		run := time.Now()
 		cnt++
-		fmt.Printf("%d:%s ", cnt, run.Sub(st).Truncate(10*time.Millisecond))
+		fmt.Printf("%d:%s ", cnt, run.Sub(st).Truncate(delay))
 		st = run
 		return sm.ErrorEnd(fmt.Errorf("don't stop"))
 	}))
 
 	sm.Run(context.Background(), start)
 
-	// Output: Retries: 1:10ms 2:20ms 3:40ms 4:80ms 5:160ms
+	// Output: 5 retries with 2x linear backoff 10ms delay
+	// 1:10ms 2:20ms 3:40ms 4:80ms 5:160ms
 }
 
 func ExampleJitter() {
 	st := time.Now()
 	cnt := 0
 
-	fmt.Printf("Retries: ")
+	fmt.Printf("2 retries with 1ms jitter over 10ms delay\n")
 	start := sm.Retry(2, sm.BackOff(sm.Jitter(time.Millisecond, sm.Constant(delay)), func(_ context.Context) sm.Fn {
 		run := time.Now()
 		cnt++
-		// NOTE(marius): The jitter adds a maximum of one ms, so with truncation of 2 ms the output will be correct
-		// This is not a very good example test.
+		// NOTE(marius): The jitter adds a maximum of 1 ms, so with truncation of 2 ms the output will be correct
+		// This is not a very good example test, though.
 		fmt.Printf("%d:%s ", cnt, run.Sub(st).Truncate(2*time.Millisecond))
 		st = run
 		return sm.ErrorEnd(fmt.Errorf("never right"))
@@ -112,5 +114,6 @@ func ExampleJitter() {
 
 	sm.Run(context.Background(), start)
 
-	// Output: Retries: 1:10ms 2:10ms
+	// Output: 2 retries with 1ms jitter over 10ms delay
+	// 1:10ms 2:10ms
 }

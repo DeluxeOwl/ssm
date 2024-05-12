@@ -54,6 +54,7 @@ func Constant(d time.Duration) StrategyFn {
 func Linear(d time.Duration, m float64) StrategyFn {
 	return func() time.Duration {
 		t := d
+		// linearly increase duration for next run
 		d = time.Duration(m) * d
 		return t
 	}

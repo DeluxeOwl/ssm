@@ -29,9 +29,21 @@ func StartState(ctx context.Context) Fn {
 	return End
 }
 
+func Cancel(ctx context.Context) context.CancelCauseFunc {
+	cancel := ctx.Value(__cancel)
+	if cancel == nil {
+		return nil
+	}
+	if cancelFn, ok := cancel.(context.CancelCauseFunc); ok {
+		return cancelFn
+	}
+	return nil
+}
+
 type smKeys string
 
 const __start smKeys = "__start"
+const __cancel smKeys = "__cancel"
 
 // Error this state
 func (e errState) Error() string {
@@ -63,10 +75,18 @@ func IsError(f Fn) bool {
 	return p == _ptrEndStop || p == _ptrEndRestart
 }
 
-func (e errState) stop(_ context.Context) Fn {
+func (e errState) stop(ctx context.Context) Fn {
+	cancelFn := Cancel(ctx)
+	if cancelFn != nil {
+		defer cancelFn(e.error)
+	}
 	return End
 }
 
 func (e errState) restart(ctx context.Context) Fn {
+	cancelFn := Cancel(ctx)
+	if cancelFn != nil {
+		defer cancelFn(e.error)
+	}
 	return StartState(ctx)
 }

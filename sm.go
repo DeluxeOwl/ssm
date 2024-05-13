@@ -18,35 +18,42 @@ func aggStates(batch aggregatorFn, states ...Fn) Fn {
 	return batch(states...)
 }
 
-func Run(ctx context.Context, states ...Fn) {
-	loop(ctx, batchStates(states...))
+func Run(ctx context.Context, states ...Fn) error {
+	return loop(ctx, batchStates(states...))
 }
 
-func RunParallel(ctx context.Context, states ...Fn) {
-	loop(ctx, parallelStates(states...))
+func RunParallel(ctx context.Context, states ...Fn) error {
+	return loop(ctx, parallelStates(states...))
 }
 
-func loop(ctx context.Context, state Fn) {
+func loop(ctx context.Context, state Fn) error {
 	if IsEnd(state) {
-		return
+		return nil
 	}
+	var cancel context.CancelCauseFunc
+	var err error
 
+	ctx, cancel = context.WithCancelCause(ctx)
 	ctx = context.WithValue(ctx, __start, state)
+	if cancel != nil {
+		ctx = context.WithValue(ctx, __cancel, cancel)
+	}
 
 	for {
 		select {
 		case <-ctx.Done():
-			if err := context.Cause(ctx); err != nil {
+			if err = context.Cause(ctx); err != nil {
 				state = ErrorEnd(err)
 			}
 			state = End
 			continue
 		default:
-			if next := state(ctx); next != nil {
+			if next := state(ctx); !IsEnd(next) {
 				state = next
 				continue
 			}
 		}
 		break
 	}
+	return context.Cause(ctx)
 }

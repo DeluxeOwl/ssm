@@ -202,12 +202,26 @@ func ExampleBreakerWithTimer() {
 
 func ExampleContextDone() {
 	ctx, stopFn := context.WithCancelCause(context.Background())
-	sm.Run(ctx, func(ctx context.Context) sm.Fn {
+	err := sm.Run(ctx, func(ctx context.Context) sm.Fn {
 		stopFn(errors.New("hahahaha"))
 		return sm.End
 	})
 
-	fmt.Printf("%s", context.Cause(ctx))
+	fmt.Printf("%s", err)                // hahahaha
+	fmt.Printf("%s", context.Cause(ctx)) // hahahaha, because the same error cause can be found in our external context
+
+	// Output: hahahahahahahaha
+}
+
+func ExampleContextCancel() {
+	ctx := context.Background()
+	err := sm.Run(ctx, func(ctx context.Context) sm.Fn {
+		stopFn := sm.Cancel(ctx)
+		stopFn(errors.New("hahahaha"))
+		return sm.End
+	})
+
+	fmt.Printf("%s", err)
 
 	// Output: hahahaha
 }

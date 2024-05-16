@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestRunParallel(t *testing.T) {
@@ -13,28 +14,108 @@ func TestRunParallel(t *testing.T) {
 		return End
 	}
 
-	tests := []struct {
-		name   string
+	stopAfter1Ms, _ := context.WithTimeout(context.Background(), time.Millisecond)
+
+	type args struct {
+		ctx    context.Context
 		states []Fn
-		want   error
+	}
+	tests := []struct {
+		name string
+		args args
+		want error
 	}{
 		{
-			name:   "just start",
-			states: []Fn{iter},
+			name: "just start",
+			args: args{
+				ctx:    context.Background(),
+				states: []Fn{iter},
+			},
 		},
 		{
-			name:   "just start",
-			states: []Fn{iter},
+			name: "just start",
+			args: args{
+				ctx:    context.Background(),
+				states: []Fn{iter},
+			},
 		},
 		{
-			name:   "with error",
-			states: []Fn{ErrorEnd(errors.New("test"))},
-			want:   errors.New("test"),
+			name: "with error",
+			args: args{
+				ctx:    context.Background(),
+				states: []Fn{ErrorEnd(errors.New("test"))},
+			},
+			want: errors.New("test"),
+		},
+		{
+			name: "with deadline of 1ms",
+			args: args{
+				ctx:    stopAfter1Ms,
+				states: []Fn{After(10*time.Millisecond, End)},
+			},
+			want: context.DeadlineExceeded,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := RunParallel(context.Background(), tt.states...)
+			err := RunParallel(tt.args.ctx, tt.args.states...)
+			if (err != nil) && !reflect.DeepEqual(tt.want, err) {
+				t.Errorf("RunParallel() error = %v, wanted %v", err, tt.want)
+			}
+		})
+	}
+}
+
+func TestRun(t *testing.T) {
+	iter := func(_ context.Context) Fn {
+		return End
+	}
+
+	stopAfter1Ms, _ := context.WithTimeout(context.Background(), time.Millisecond)
+
+	type args struct {
+		ctx    context.Context
+		states []Fn
+	}
+	tests := []struct {
+		name string
+		args args
+		want error
+	}{
+		{
+			name: "just start",
+			args: args{
+				ctx:    context.Background(),
+				states: []Fn{iter},
+			},
+		},
+		{
+			name: "just start",
+			args: args{
+				ctx:    context.Background(),
+				states: []Fn{iter},
+			},
+		},
+		{
+			name: "with error",
+			args: args{
+				ctx:    context.Background(),
+				states: []Fn{ErrorEnd(errors.New("test"))},
+			},
+			want: errors.New("test"),
+		},
+		{
+			name: "with deadline of 1ms",
+			args: args{
+				ctx:    stopAfter1Ms,
+				states: []Fn{After(10*time.Millisecond, End)},
+			},
+			want: context.DeadlineExceeded,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := Run(tt.args.ctx, tt.args.states...)
 			if (err != nil) && !reflect.DeepEqual(tt.want, err) {
 				t.Errorf("Run() error = %v, wanted %v", err, tt.want)
 			}
@@ -85,40 +166,6 @@ func TestIsEnd(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := IsEnd(tt.f); got != tt.want {
 				t.Errorf("IsEnd() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestRun(t *testing.T) {
-	iter := func(_ context.Context) Fn {
-		return End
-	}
-
-	tests := []struct {
-		name   string
-		states []Fn
-		want   error
-	}{
-		{
-			name:   "just start",
-			states: []Fn{iter},
-		},
-		{
-			name:   "just start",
-			states: []Fn{iter},
-		},
-		{
-			name:   "with error",
-			states: []Fn{ErrorEnd(errors.New("test"))},
-			want:   errors.New("test"),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := Run(context.Background(), tt.states...)
-			if (err != nil) && !reflect.DeepEqual(tt.want, err) {
-				t.Errorf("Run() error = %v, wanted %v", err, tt.want)
 			}
 		})
 	}

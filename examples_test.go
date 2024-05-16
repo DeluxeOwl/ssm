@@ -34,12 +34,26 @@ func (i *iter) next(ctx context.Context) sm.Fn {
 	return i.next
 }
 
-func ExampleRun() {
+func ExampleRunWithContextValue() {
 	ctx := context.WithValue(context.Background(), _max, 10)
 
 	sm.Run(ctx, start)
 
 	// Output: start 0 1 2 3 4 5 6 7 8 9 10 end
+}
+
+func loop(_ context.Context) sm.Fn {
+	return sm.After(time.Millisecond, loop)
+}
+
+func ExampleRunWithTimeout() {
+	ctx, _ := context.WithTimeout(context.Background(), 10*delay)
+
+	err := sm.Run(ctx, loop)
+
+	fmt.Printf("%s", err)
+
+	// Output: context deadline exceeded
 }
 
 func ExampleRetry() {

@@ -7,8 +7,6 @@ import (
 	"time"
 )
 
-const delay = 10 * time.Millisecond
-
 func mockStateWithDelay(t *testing.T, delay time.Duration) Fn {
 	startTime := time.Now()
 	i := 0

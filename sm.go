@@ -1,8 +1,6 @@
 package ssm
 
-import (
-	"context"
-)
+import "context"
 
 type Fn func(context.Context) Fn
 
@@ -44,9 +42,10 @@ func loop(ctx context.Context, state Fn) error {
 		case <-ctx.Done():
 			if err = context.Cause(ctx); err != nil {
 				state = ErrorEnd(err)
+				break
 			}
 			state = End
-			continue
+			break
 		default:
 			if next := state(ctx); !IsEnd(next) {
 				state = next

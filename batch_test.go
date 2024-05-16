@@ -1,15 +1,14 @@
 package ssm
 
 import (
-	"context"
 	"testing"
 )
 
 func TestBatch(t *testing.T) {
 	tests := []struct {
-		name         string
-		states       []Fn
-		wantEndState bool
+		name   string
+		states []Fn
+		want   Fn
 	}{
 		{
 			name:   "nil",
@@ -20,26 +19,39 @@ func TestBatch(t *testing.T) {
 			states: []Fn{},
 		},
 		{
-			name:         "one fn",
-			states:       []Fn{mockEmpty},
-			wantEndState: true,
+			name:   "one fn",
+			states: []Fn{mockEmpty},
+			want:   Batch(mockEmpty),
 		},
 		{
-			name:         "with nil",
-			states:       []Fn{nil},
-			wantEndState: true,
+			name:   "with explicit nil",
+			states: []Fn{nil},
+		},
+		{
+			name:   "two mock fns",
+			states: []Fn{mockEmpty, mockEmpty},
+			want:   Batch(mockEmpty, mockEmpty),
+		},
+		{
+			name:   "one self fns",
+			states: []Fn{mockSelf},
+			want:   Batch(mockSelf),
+		},
+		{
+			name:   "two self fns",
+			states: []Fn{mockSelf, mockSelf},
+			want:   Batch(mockSelf, mockSelf),
+		},
+		{
+			name:   "with End",
+			states: []Fn{End},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := Batch(tt.states...)
-			if (got != nil) != tt.wantEndState {
-				t.Errorf("Batch() wantEndState %t", tt.wantEndState)
-			} else if got != nil {
-				gotSt := got(context.Background())
-				if gotSt != nil {
-					t.Errorf("Batch()() final state = %v, expected nil", gotSt)
-				}
+			if !sameFns(got, tt.want) {
+				t.Errorf("Batch() returned end state %q, expected %q", nameOf(got), nameOf(tt.want))
 			}
 		})
 	}

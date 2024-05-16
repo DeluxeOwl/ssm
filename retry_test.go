@@ -93,8 +93,8 @@ func TestRetry(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := Retry(tt.args.retries, tt.args.fn); ptrOf(got) != ptrOf(tt.want) {
-				t.Errorf("Retry() = %v, want %v", got, tt.want)
+			if got := Retry(tt.args.retries, tt.args.fn); !sameFns(got, tt.want) {
+				t.Errorf("Retry() = %v, want %v", nameOf(got), nameOf(tt.want))
 			}
 		})
 	}

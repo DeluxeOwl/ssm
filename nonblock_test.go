@@ -64,8 +64,8 @@ func testLoopStates(t *testing.T, start Fn, expected ...Fn) {
 
 	for i, exp := range expected {
 		next := start(ctx)
-		if ptrOf(next) != ptrOf(exp) {
-			t.Errorf("Invalid state at iteration %d = %v, want %v", i, next, exp)
+		if !sameFns(next, exp) {
+			t.Errorf("Invalid state at iteration %d = %v, want %v", i, nameOf(next), nameOf(exp))
 		}
 		if IsEnd(next) {
 			break

@@ -29,8 +29,8 @@ func TestStartState(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := StartState(tt.ctx); ptrOf(got) != ptrOf(tt.want) {
-				t.Errorf("StartState() = %v, want %v", got, tt.want)
+			if got := StartState(tt.ctx); !sameFns(got, tt.want) {
+				t.Errorf("StartState() = %v, want %v", nameOf(got), nameOf(tt.want))
 			}
 		})
 	}
@@ -56,11 +56,11 @@ func TestError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := ErrorEnd(tt.err)
-			if ptrOf(got) != ptrOf(tt.want) {
-				t.Errorf("ErrorEnd() = %v, want %v", got, tt.want)
+			if !sameFns(got, tt.want) {
+				t.Errorf("ErrorEnd() = %v, want %v", nameOf(got), nameOf(tt.want))
 			}
-			if st := got(context.Background()); ptrOf(st) != ptrOf(End) {
-				t.Errorf("Post run state for ErrorEnd() = %v, want %v", st, End)
+			if st := got(context.Background()); !sameFns(st, End) {
+				t.Errorf("Post run state for ErrorEnd() = %v, want %v", nameOf(st), nameOf(End))
 			}
 		})
 	}
@@ -95,11 +95,11 @@ func TestErrorRestart(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := ErrorRestart(tt.err)
-			if ptrOf(got) != ptrOf(tt.want) {
-				t.Errorf("ErrorRestart() = %v, want %v", got, tt.want)
+			if !sameFns(got, tt.want) {
+				t.Errorf("ErrorRestart() = %v, want %v", nameOf(got), nameOf(tt.want))
 			}
-			if st := got(context.Background()); ptrOf(st) != ptrOf(End) {
-				t.Errorf("Post run state for ErrorRestart() = %v, want %v", st, End)
+			if st := got(context.Background()); !sameFns(st, End) {
+				t.Errorf("Post run state for ErrorRestart() = %v, want %v", nameOf(st), nameOf(End))
 			}
 		})
 	}

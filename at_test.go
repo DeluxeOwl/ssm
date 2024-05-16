@@ -27,8 +27,8 @@ func TestAt(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := At(tt.args.t, tt.args.state)(context.Background())
-			if ptrOf(got) != ptrOf(tt.endState) {
-				t.Errorf("At()() = %v, wantErr %v", got, tt.endState)
+			if !sameFns(got, tt.endState) {
+				t.Errorf("At()() = %v, wantErr %v", nameOf(got), nameOf(tt.endState))
 			}
 		})
 	}

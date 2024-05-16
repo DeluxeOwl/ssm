@@ -17,7 +17,8 @@ func Wait(ctx context.Context) ssm.Fn {
 }
 
 func Example_Wait() {
-	_, f, _, _ := runtime.Caller(0)
+	_, f, _, _ := runtime.Caller(0) // f will be the current file path
+
 	states, _ := internal.LoadStates(f)
 	_ = dot.Dot("", states...)
 	// Output: digraph  {

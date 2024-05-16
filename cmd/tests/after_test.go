@@ -15,7 +15,8 @@ func AfterTwoSeconds(state ssm.Fn) ssm.Fn {
 }
 
 func Example_AfterTwoSeconds() {
-	_, f, _, _ := runtime.Caller(0)
+	_, f, _, _ := runtime.Caller(0) // f will be the current file path
+
 	states, _ := internal.LoadStates(f)
 	_ = dot.Dot("", states...)
 	// Output: digraph  {

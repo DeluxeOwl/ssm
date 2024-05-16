@@ -10,8 +10,8 @@ tasks:
 
       cd ssm
       go mod tidy
-      go test -cover -race -v ./...
+      go test -count=1 -cover -race -v .
 
       cd cmd
       go mod tidy
-      go test -cover -race -v ./...
+      go test -count=1 -cover -race -v ./...

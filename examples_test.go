@@ -89,7 +89,7 @@ func ExampleConstant() {
 	cnt := 0
 
 	fmt.Printf("8 retries with constant backoff of 10ms\n")
-	cnst := sm.Retry(8, sm.BackOff(sm.Constant(delay), func(_ context.Context) sm.Fn {
+	con := sm.Retry(8, sm.BackOff(sm.Constant(delay), func(_ context.Context) sm.Fn {
 		run := time.Now()
 		cnt++
 		fmt.Printf("%d:%s\n", cnt, run.Sub(st).Truncate(delay))
@@ -97,7 +97,7 @@ func ExampleConstant() {
 		return sm.ErrorEnd(fmt.Errorf("keep going"))
 	}))
 
-	sm.Run(context.Background(), cnst)
+	sm.Run(context.Background(), con)
 
 	// Output: 8 retries with constant backoff of 10ms
 	// 1:10ms

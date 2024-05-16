@@ -14,7 +14,7 @@ func After(d time.Duration, state Fn) Fn {
 type after time.Duration
 
 func (e after) run(states ...Fn) Fn {
-	run := batchStates(states...)
+	run := aggStates(batchStates, states...)
 	if IsEnd(run) {
 		return End
 	}

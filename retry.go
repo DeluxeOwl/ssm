@@ -22,10 +22,10 @@ func retry(retries int, fn Fn) Fn {
 			if !IsError(next) {
 				return next
 			}
-			if retries-1 <= 0 {
-				return next
+			if retries-1 > 0 {
+				return retry(retries-1, fn)
 			}
-			return retry(retries-1, fn)
+			return next
 		}
 	}
 }

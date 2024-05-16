@@ -17,11 +17,11 @@ func aggStates(batch aggregatorFn, states ...Fn) Fn {
 }
 
 func Run(ctx context.Context, states ...Fn) error {
-	return loop(ctx, batchStates(states...))
+	return loop(ctx, aggStates(batchStates, states...))
 }
 
 func RunParallel(ctx context.Context, states ...Fn) error {
-	return loop(ctx, parallelStates(states...))
+	return loop(ctx, aggStates(parallelStates, states...))
 }
 
 func loop(ctx context.Context, state Fn) error {

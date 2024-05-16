@@ -28,9 +28,6 @@ func runAfter(d time.Duration, run Fn) Fn {
 		time.AfterFunc(d, func() {
 			done <- run(ctx)
 		})
-		select {
-		case next := <-done:
-			return next
-		}
+		return <-done
 	}
 }

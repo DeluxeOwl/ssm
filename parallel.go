@@ -7,16 +7,10 @@ import (
 // Parallel executes the received states in parallel goroutines, and accumulates the next states.
 // The resulting next state is returned as a parallel batch of all the non End states resolved.
 func Parallel(states ...Fn) Fn {
-	return aggStates(parallelStates, states...)
+	return aggStates(parallelExec, states...)
 }
 
-func parallelStates(states ...Fn) Fn {
-	for i, state := range states {
-		if IsEnd(state) {
-			states = append(states[:i], states[i+1:]...)
-		}
-	}
-
+func parallelExec(states ...Fn) Fn {
 	if len(states) == 0 {
 		return End
 	}
@@ -34,6 +28,6 @@ func parallelStates(states ...Fn) Fn {
 		for range states {
 			nextStates = append(nextStates, <-c)
 		}
-		return aggStates(parallelStates, nextStates...)
+		return aggStates(parallelExec, nextStates...)
 	}
 }

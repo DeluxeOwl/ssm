@@ -14,7 +14,7 @@ func NonBlocking(states ...Fn) Fn {
 type nb chan Fn
 
 func (n nb) run(states ...Fn) Fn {
-	run := aggStates(batchStates, states...)
+	run := aggStates(batchExec, states...)
 	if IsEnd(run) {
 		return End
 	}

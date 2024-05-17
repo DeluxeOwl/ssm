@@ -5,16 +5,10 @@ import "context"
 // Batch executes the received states sequentially, and accumulates the next states.
 // The resulting next state is returned as a sequential batch of all the non End states resolved.
 func Batch(states ...Fn) Fn {
-	return aggStates(batchStates, states...)
+	return aggStates(batchExec, states...)
 }
 
-func batchStates(states ...Fn) Fn {
-	for i, state := range states {
-		if IsEnd(state) {
-			states = append(states[:i], states[i+1:]...)
-		}
-	}
-
+func batchExec(states ...Fn) Fn {
 	if len(states) == 0 {
 		return End
 	}
@@ -33,6 +27,6 @@ func batchStates(states ...Fn) Fn {
 				nextStates = append(nextStates, st)
 			}
 		}
-		return aggStates(batchStates, nextStates...)
+		return aggStates(batchExec, nextStates...)
 	}
 }

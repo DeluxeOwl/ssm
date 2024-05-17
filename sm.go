@@ -6,25 +6,43 @@ type Fn func(context.Context) Fn
 
 type aggregatorFn func(...Fn) Fn
 
-func aggStates(batch aggregatorFn, states ...Fn) Fn {
+// aggStates filters out End states from the received "states" list.
+// If the resulting list is empty, the End state is returned.
+// If it's one element long it gets returned directly as there's no need to call the batch aggregatorFn on it.
+// For other cases, the batch aggregatorFn function gets called.
+func aggStates(batchFn aggregatorFn, states ...Fn) Fn {
+	for i, state := range states {
+		if IsEnd(state) {
+			states = append(states[:i], states[i+1:]...)
+		}
+	}
+
 	if len(states) == 0 {
 		return End
 	}
+
 	if len(states) == 1 {
 		return states[0]
 	}
-	return batch(states...)
+
+	return batchFn(states...)
 }
 
+// Run executes the received states machine in a loop in sequential fashion
+// until it's reduced to a single End, or ErrorEnd state, when it stops and
+// returns the corresponding error.
 func Run(ctx context.Context, states ...Fn) error {
-	return loop(ctx, aggStates(batchStates, states...))
+	return run(ctx, aggStates(batchExec, states...))
 }
 
+// RunParallel executes the received states machine in a loop in parallel fashion
+// until it's reduced to a single End, or ErrorEnd state, when it stops and
+// returns the corresponding error.
 func RunParallel(ctx context.Context, states ...Fn) error {
-	return loop(ctx, aggStates(parallelStates, states...))
+	return run(ctx, aggStates(parallelExec, states...))
 }
 
-func loop(ctx context.Context, state Fn) error {
+func run(ctx context.Context, state Fn) error {
 	if IsEnd(state) {
 		return nil
 	}

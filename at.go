@@ -13,7 +13,7 @@ func At(t time.Time, state Fn) Fn {
 type alarm time.Time
 
 func (t alarm) run(states ...Fn) Fn {
-	run := batchStates(states...)
+	run := batchExec(states...)
 	if IsEnd(run) {
 		return End
 	}

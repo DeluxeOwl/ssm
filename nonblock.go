@@ -3,6 +3,7 @@ package ssm
 import (
 	"context"
 	"sync"
+	"time"
 )
 
 // NonBlocking executes states in a goroutine and until it resolves it returns a wait state
@@ -36,11 +37,14 @@ func (n nb) run(states ...Fn) Fn {
 	}
 }
 
-func (n nb) wait(ctx context.Context) Fn {
+var waitTimeout = 100 * time.Microsecond
+
+func (n nb) wait(_ context.Context) Fn {
 	select {
 	case next := <-n:
 		return next
 	default:
+		time.Sleep(waitTimeout)
 		return n.wait
 	}
 }

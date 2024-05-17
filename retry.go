@@ -3,27 +3,40 @@ package ssm
 import (
 	"context"
 	"math/rand"
+	"sync/atomic"
 	"time"
 )
 
 // Retry is a way to construct a state machine out of repeating the execution of received state "fn",
-// until the number of "retries" has been reached, or "fn" returns the End state.
+// when it returns an IsError state until the number of "retries" has been reached.
 //
 // The "fn" parameter can be one of the functions accepting a StrategyFn parameters,
 // which wrap the original state Fn, and which provide a way to delay the execution between retries.
-func Retry(retries int, fn Fn) Fn {
-	return retry(retries, fn)
+//
+// The Retry state machine is reentrant, therefore can be used from multiple goroutines.
+func Retry(count int, fn Fn) Fn {
+	return retries(count).run(fn)
 }
 
-func retry(retries int, fn Fn) Fn {
+type ar atomic.Int32
+
+func retries(count int) *ar {
+	i := atomic.Int32{}
+	i.Store(int32(count - 1))
+	return (*ar)(&i)
+}
+
+func (r *ar) run(fn Fn) Fn {
+	i := (*atomic.Int32)(r)
 	return func(ctx context.Context) Fn {
 		for {
 			next := fn(ctx)
 			if !IsError(next) {
 				return next
 			}
-			if retries-1 > 0 {
-				return retry(retries-1, fn)
+			if i.Load() > 0 {
+				i.Add(-1)
+				return r.run(fn)
 			}
 			return next
 		}

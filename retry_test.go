@@ -80,7 +80,7 @@ func TestRetry(t *testing.T) {
 				retries: 0,
 				fn:      retryOnce,
 			},
-			want: retry(0, retryOnce),
+			want: retries(0).run(retryOnce),
 		},
 		{
 			name: "one retry",
@@ -88,7 +88,7 @@ func TestRetry(t *testing.T) {
 				retries: 1,
 				fn:      retryNone,
 			},
-			want: retry(1, retryNone),
+			want: retries(1).run(retryNone),
 		},
 	}
 	for _, tt := range tests {

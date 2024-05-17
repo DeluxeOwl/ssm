@@ -3,12 +3,9 @@ package ssm
 import (
 	"context"
 	"testing"
-	"time"
 )
 
-var defaultTime = time.Now().Add(defaultDelay)
-
-var timedState = At(defaultTime, End)
+var timedState = After(defaultDelay, mockEmpty)
 
 var expectedNonBlockingWaitState = new(nb).wait
 
@@ -32,18 +29,43 @@ func TestNonBlocking(t *testing.T) {
 			name:   "timed return mock empty",
 			states: []Fn{timedState},
 			want: []Fn{
-				// 10 times wait, then end state
-				expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState,
-				End,
+				// 10 times wait, then mockEmpty, then end state
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
+				mockEmpty,
 			},
 		},
 	}
@@ -71,6 +93,5 @@ func testLoopStates(t *testing.T, start Fn, expected ...Fn) {
 			break
 		}
 		start = next
-		time.Sleep(defaultDelay / 10)
 	}
 }

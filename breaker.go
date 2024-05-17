@@ -7,6 +7,29 @@ import (
 	"time"
 )
 
+// Breaker is a state machine that can be used for disabling execution of incoming "fn" state if
+// its returning state is an error state and the conditions of the "trip" TripStrategyFn are fulfilled.
+//
+// Currently, there is no method for closing the Breaker once opened.
+func Breaker(trip TripStrategyFn, fn Fn) Fn {
+	b := b{
+		tripCheck: trip,
+		fn:        fn,
+	}
+	return b.check
+}
+
+// OpenBreaker is an error state that is used to trip open the Breaker.
+func OpenBreaker() Fn {
+	return errState{errors.New("open breaker")}.stop
+}
+
+// TripStrategyFn is used by the Circuit Breaker state machine to determine if current run
+// requires the breaker to trip open.
+//
+// Our API doesn't allow these functions to do the error check on the returned state of
+// the breaker state. It is assumed that the Breaker itself calls the TripStrategyFn function
+// only for error states.
 type TripStrategyFn func() bool
 
 func neverTrip() bool {
@@ -25,6 +48,10 @@ func (m *mt) check() bool {
 }
 
 // MaxTriesTrip returns false for "max" invocations, then returns true.
+// It is the simplest form of count based circuit breaking.
+//
+// The check function itself can be run safely in parallel, so if multiple
+// checks are needed, MaxTriesTrip must be invoked multiple times.
 func MaxTriesTrip(max int) TripStrategyFn {
 	if max < 0 {
 		return neverTrip
@@ -35,8 +62,8 @@ func MaxTriesTrip(max int) TripStrategyFn {
 	return m.check
 }
 
-// TimedTrip uses "fn" TripStrategyFn for returning the status of the breaker, but it resets it
-// every "d" time.Duration
+// TimedTrip uses "fn" TripStrategyFn for returning the status of the Breaker, but it resets it
+// every "d" time.Duration.
 func TimedTrip(d time.Duration, fn TripStrategyFn) TripStrategyFn {
 	if fn == nil {
 		// Run at least once
@@ -56,18 +83,6 @@ func TimedTrip(d time.Duration, fn TripStrategyFn) TripStrategyFn {
 		}
 		return fn()
 	}
-}
-
-func Breaker(trip TripStrategyFn, fn Fn) Fn {
-	b := b{
-		tripCheck: trip,
-		fn:        fn,
-	}
-	return b.check
-}
-
-func OpenBreaker() Fn {
-	return errState{errors.New("open breaker")}.stop
 }
 
 type b struct {

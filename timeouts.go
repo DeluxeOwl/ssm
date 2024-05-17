@@ -7,7 +7,9 @@ import (
 
 // Timeout is a state machine that calls the "state" Fn limiting its execution time
 // to a maximum of "max" time.Duration.
-// When the timeout is reached the execution is canceled.
+//
+// If the timeout is reached, the execution is canceled and an ErrorEnd state wrapping the
+// context.DeadlineExceeded error is returned.
 func Timeout(max time.Duration, state Fn) Fn {
 	if IsEnd(state) {
 		return state

@@ -20,6 +20,9 @@ func parallelExec(states ...Fn) Fn {
 		c := make(chan Fn, len(states))
 
 		for _, state := range states {
+			if IsEnd(state) {
+				continue
+			}
 			go func(st Fn) {
 				c <- st(ctx)
 			}(state)

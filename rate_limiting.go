@@ -2,6 +2,7 @@ package ssm
 
 import (
 	"context"
+	"errors"
 	"time"
 )
 
@@ -11,15 +12,46 @@ import (
 // The strategy function returns if the current execution needs to be stalled in order
 // to fulfill the rate limit logic it corresponds to, together with what the corresponding
 // delay should be, if it does.
-func RateLimit(limitFn LimitStrategyFn, state Fn) Fn {
-	if IsEnd(state) {
+func RateLimit(limitFn LimitStrategyFn, states ...Fn) Fn {
+	if limitFn == nil {
+		return ErrorEnd(InvalidRateLimitFn)
+	}
+	if len(states) == 0 {
 		return End
 	}
 	return func(ctx context.Context) Fn {
-		if stall, delay := limitFn(); !stall {
-			return After(delay, state)
+		aggFn := batchExec
+		if stall, delay := limitFn(); stall {
+			aggFn = staggerExec(delay)
 		}
-		return state(ctx)
+		return aggStates(aggFn, states...)
+	}
+}
+
+var InvalidRateLimitFn = errors.New("invalid rate limit method")
+
+func staggerExec(delay time.Duration) func(states ...Fn) Fn {
+	return func(states ...Fn) Fn {
+		if len(states) == 0 {
+			return End
+		}
+
+		return func(ctx context.Context) Fn {
+			nextStates := make([]Fn, 0, len(states))
+
+			for i, state := range states {
+				if IsEnd(state) {
+					continue
+				}
+
+				st := after(time.Duration(i) * delay).run(state(ctx))
+
+				if !IsEnd(st) {
+					nextStates = append(nextStates, st)
+				}
+			}
+			return aggStates(batchExec, nextStates...)
+		}
 	}
 }
 

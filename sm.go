@@ -11,12 +11,7 @@ type aggregatorFn func(...Fn) Fn
 // If it's one element long it gets returned directly as there's no need to call the batch aggregatorFn on it.
 // For other cases, the batch aggregatorFn function gets called.
 func aggStates(batchFn aggregatorFn, states ...Fn) Fn {
-	for i, state := range states {
-		if IsEnd(state) {
-			states = append(states[:i], states[i+1:]...)
-		}
-	}
-
+	states = filterEndStates(states)
 	if len(states) == 0 {
 		return End
 	}
@@ -26,6 +21,19 @@ func aggStates(batchFn aggregatorFn, states ...Fn) Fn {
 	}
 
 	return batchFn(states...)
+}
+
+func filterEndStates(states []Fn) []Fn {
+	for i, state := range states {
+		if IsEnd(state) {
+			if i+1 >= len(states) {
+				states = (states)[:i]
+			} else {
+				states = append((states)[:i], (states)[i+1:]...)
+			}
+		}
+	}
+	return states
 }
 
 // Run executes the received states machine in a loop in sequential fashion

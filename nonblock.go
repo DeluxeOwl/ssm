@@ -21,9 +21,9 @@ func (n nb) run(states ...Fn) Fn {
 
 	do := func(ctx context.Context, run Fn) func() {
 		return func() {
-			go func(ctx context.Context) {
+			go func(ctx context.Context, run Fn) {
 				n <- run(ctx)
-			}(ctx)
+			}(ctx, run)
 		}
 	}
 

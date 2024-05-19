@@ -3,6 +3,7 @@ package ssm
 import (
 	"context"
 	"testing"
+	"time"
 )
 
 var timedState = After(defaultDelay, mockEmpty)
@@ -23,7 +24,9 @@ func TestNonBlocking(t *testing.T) {
 		{
 			name:   "mock empty",
 			states: []Fn{mockEmpty},
-			want:   []Fn{expectedNonBlockingWaitState, End},
+			want: []Fn{
+				expectedNonBlockingWaitState, End,
+			},
 		},
 		{
 			name:   "timed return mock empty",
@@ -33,39 +36,7 @@ func TestNonBlocking(t *testing.T) {
 				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
 				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
 				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				expectedNonBlockingWaitState, expectedNonBlockingWaitState, expectedNonBlockingWaitState,
-				mockEmpty,
+				expectedNonBlockingWaitState, End,
 			},
 		},
 	}
@@ -93,5 +64,6 @@ func testLoopStates(t *testing.T, start Fn, expected ...Fn) {
 			break
 		}
 		start = next
+		time.Sleep(defaultDelay / 10)
 	}
 }

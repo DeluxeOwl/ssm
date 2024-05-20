@@ -28,6 +28,14 @@ func runAfter(d time.Duration, run Fn) Fn {
 		time.AfterFunc(d, func() {
 			done <- run(ctx)
 		})
-		return <-done
+		select {
+		case <-ctx.Done():
+			if err := ctx.Err(); err != nil {
+				return ErrorEnd(err)
+			}
+			return End
+		case next := <-done:
+			return next
+		}
 	}
 }

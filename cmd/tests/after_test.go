@@ -24,7 +24,9 @@ func Example_AfterTwoSeconds() {
 	//		label="ssm";
 	//		n4[label="After"];
 	//		n6[label="End"];
+	//		n8[label="ErrorEnd"];
 	//		n5[label="after.run"];
+	//		n9[label="errState.stop"];
 	//		n7[label="runAfter"];
 	//
 	//	}
@@ -36,8 +38,12 @@ func Example_AfterTwoSeconds() {
 	//
 	//	n4->n5;
 	//	n2->n4;
+	//	n8->n9;
 	//	n5->n6;
 	//	n5->n7;
+	//	n9->n6;
+	//	n7->n8;
+	//	n7->n6;
 	//
 	//}
 }

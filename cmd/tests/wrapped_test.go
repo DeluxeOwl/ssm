@@ -2,12 +2,12 @@ package tests
 
 import (
 	"context"
-	"git.sr.ht/~mariusor/ssm/cmd/internal"
-	"git.sr.ht/~mariusor/ssm/cmd/internal/dot"
 	"runtime"
 	"time"
 
 	"git.sr.ht/~mariusor/ssm"
+	"git.sr.ht/~mariusor/ssm/cmd/internal"
+	"git.sr.ht/~mariusor/ssm/cmd/internal/dot"
 )
 
 func Wait(ctx context.Context) ssm.Fn {
@@ -24,13 +24,15 @@ func Example_Wait() {
 	// Output: digraph  {
 	//	subgraph cluster_s3 {
 	//		label="ssm";
-	//		n8[label="After"];
+	//		n10[label="After"];
 	//		n6[label="End"];
+	//		n8[label="ErrorEnd"];
 	//		n4[label="NonBlocking"];
-	//		n9[label="after.run"];
+	//		n11[label="after.run"];
+	//		n9[label="errState.stop"];
 	//		n5[label="nb.run"];
 	//		n7[label="nb.wait"];
-	//		n10[label="runAfter"];
+	//		n12[label="runAfter"];
 	//
 	//	}
 	//	subgraph cluster_s1 {
@@ -39,15 +41,21 @@ func Example_Wait() {
 	//
 	//	}
 	//
+	//	n10->n11;
 	//	n8->n9;
 	//	n4->n5;
-	//	n4->n8;
+	//	n4->n10;
 	//	n2->n4;
+	//	n11->n6;
+	//	n11->n12;
 	//	n9->n6;
-	//	n9->n10;
 	//	n5->n6;
 	//	n5->n7;
+	//	n7->n8;
+	//	n7->n6;
 	//	n7->n7;
+	//	n12->n8;
+	//	n12->n6;
 	//
 	//}
 }

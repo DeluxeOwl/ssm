@@ -11,13 +11,6 @@ import (
 	sm "git.sr.ht/~mariusor/ssm"
 )
 
-const testINI = `
-; comment
-[group-name]
-first-item=first value
-second=0.555
-`
-
 // ip holds the INI parser state
 type ip struct {
 	// source is a byte scanner implementation that allows us to move in the
@@ -196,7 +189,14 @@ func ParseINI(ctx context.Context, s io.ByteScanner) error {
 	return sm.Run(ctx, i.parse)
 }
 
-func ExampleINIParser() {
+const testINI = `
+; comment
+[group-name]
+first-item=first value
+second=0.555
+`
+
+func ExampleParseINI() {
 	s := bytes.NewReader([]byte(testINI))
 	err := ParseINI(context.Background(), s)
 

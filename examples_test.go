@@ -239,3 +239,33 @@ func ExampleContextCancel() {
 
 	// Output: hahahaha
 }
+
+func ExampleTimeoutExceeded() {
+	fmt.Printf("Timeout\n")
+	st := time.Now()
+	err := sm.Run(context.Background(), sm.Timeout(400*time.Millisecond, func(ctx context.Context) sm.Fn {
+		fmt.Println("Sleeping for 1s")
+		time.Sleep(time.Second)
+		return sm.End
+	}))
+	fmt.Printf("Error: %s after %s", err, time.Now().Sub(st).Truncate(100*time.Millisecond))
+
+	// Output: Timeout
+	// Sleeping for 1s
+	// Error: context deadline exceeded after 400ms
+}
+
+func ExampleTimeout() {
+	fmt.Printf("Timeout\n")
+	st := time.Now()
+	err := sm.Run(context.Background(), sm.Timeout(400*time.Millisecond, func(ctx context.Context) sm.Fn {
+		fmt.Println("Sleeping for 200ms")
+		time.Sleep(200 * time.Millisecond)
+		return sm.ErrorEnd(fmt.Errorf("we reached the end"))
+	}))
+	fmt.Printf("Error: %s after %s", err, time.Now().Sub(st).Truncate(100*time.Millisecond))
+
+	// Output: Timeout
+	// Sleeping for 200ms
+	// Error: we reached the end after 200ms
+}
